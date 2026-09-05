@@ -1,81 +1,76 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { authClient } from "@/lib/auth-client";
 
 const SubmissionsContext = createContext({
+  submittedSlugs: [],
   submittedDepartments: [],
   isLoadingSubmissions: false,
-  markDepartmentsSubmitted: () => {},
+  markSubmitted: () => {},
   refreshSubmissions: async () => {},
 });
 
 export function SubmissionsProvider({ children }) {
   const { data: session } = authClient.useSession();
   const user = session?.user;
+  const [submittedSlugs, setSubmittedSlugs] = useState([]);
   const [submittedDepartments, setSubmittedDepartments] = useState([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
 
   const fetchSubmissions = useCallback(async (email) => {
-    if (!email) return;
-    const cacheKey = `submitted_depts_${email}`;
-    const cached = typeof window !== "undefined" ? sessionStorage.getItem(cacheKey) : null;
-    if (cached) {
-      try {
-        setSubmittedDepartments(JSON.parse(cached));
-        return;
-      } catch {}
+    if (!email) {
+      setSubmittedSlugs([]);
+      setSubmittedDepartments([]);
+      return;
     }
-
     setIsLoadingSubmissions(true);
     try {
-      const res = await fetch(`/api/check-applications?email=${encodeURIComponent(email)}`);
+      const res = await fetch(
+        `/api/check-applications?email=${encodeURIComponent(email)}`,
+        { cache: "no-store" }
+      );
       const data = await res.json();
-      if (data?.submittedDepartments) {
+      if (data?.submittedSlugs) setSubmittedSlugs(data.submittedSlugs);
+      if (data?.submittedDepartments)
         setSubmittedDepartments(data.submittedDepartments);
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(cacheKey, JSON.stringify(data.submittedDepartments));
-        }
-      }
     } catch (err) {
-      console.error("Error checking user submissions:", err);
+      console.error("Error checking submissions:", err);
     } finally {
       setIsLoadingSubmissions(false);
     }
   }, []);
 
   useEffect(() => {
-    if (user?.email) {
-      fetchSubmissions(user.email);
-    } else {
+    if (user?.email) fetchSubmissions(user.email);
+    else {
+      setSubmittedSlugs([]);
       setSubmittedDepartments([]);
     }
   }, [user?.email, fetchSubmissions]);
 
-  const markDepartmentsSubmitted = useCallback((newDepartments) => {
-    setSubmittedDepartments((prev) => {
-      const merged = [...new Set([...prev, ...newDepartments])];
-      if (typeof window !== "undefined" && user?.email) {
-        sessionStorage.setItem(`submitted_depts_${user.email}`, JSON.stringify(merged));
-      }
-      return merged;
-    });
-  }, [user?.email]);
+  const markSubmitted = useCallback((slugs = [], names = []) => {
+    setSubmittedSlugs((prev) => [...new Set([...prev, ...slugs])]);
+    setSubmittedDepartments((prev) => [...new Set([...prev, ...names])]);
+  }, []);
 
   const refreshSubmissions = useCallback(async () => {
-    if (user?.email) {
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem(`submitted_depts_${user.email}`);
-      }
-      await fetchSubmissions(user.email);
-    }
+    if (user?.email) await fetchSubmissions(user.email);
   }, [user?.email, fetchSubmissions]);
 
   return (
     <SubmissionsContext.Provider
       value={{
+        submittedSlugs,
         submittedDepartments,
         isLoadingSubmissions,
-        markDepartmentsSubmitted,
+        markSubmitted,
         refreshSubmissions,
       }}
     >

@@ -1,530 +1,382 @@
+"use client";
+
 import React, { useEffect, useMemo, useState } from "react";
-import * as z from "zod";
-import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "./ui/form";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-import { ChevronDown, Clock, Megaphone, UsersRound, X } from "lucide-react";
-import { QuestionnaireData } from "@/constants";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
-import { toast } from "sonner";
-import CountdownTimer from "./common/CountdownTimer";
+import { useForm } from "react-hook-form";
+import {
+  User,
+  Hash,
+  Mail,
+  Phone,
+  GraduationCap,
+  Users as UsersIcon,
+  Send,
+  Loader2,
+  CheckCircle2,
+  ChevronRight,
+} from "lucide-react";
+import { COMMON_QUESTIONS } from "@/constants";
+import { MAX_APPLICATIONS_PER_USER as MAX_APPS } from "@/lib/config";
 import { useSubmissions } from "@/components/SubmissionsProvider";
+import { toast } from "sonner";
 
-const normaliseQuestion = (question) => (
-  typeof question === "string"
-    ? { name: question, type: "generic", placeholder: "2-3 sentences" }
-    : question
-);
+const GOOGLE = ["#4285F4", "#EA4335", "#FBBC04", "#34A853"];
 
-const FormComp = ({ dept1, dept2, isLoading, setIsLoading }) => {
-  // Use Better Auth's useSession hook directly
-  const { data: session, isPending, error } = authClient.useSession();
-  
-  const user = session?.user;
-  const isSignedIn = !!user;
-  const isLoaded = !isPending;
+function Field({ label, icon: Icon, error, children }) {
+  return (
+    <label className="block">
+      <span className="flex items-center gap-2 text-sm font-semibold text-[#1a1c22] mb-1.5">
+        {Icon && <Icon size={15} className="text-[#4285F4]" />}
+        {label}
+      </span>
+      {children}
+      {error && <span className="text-xs text-[#EA4335] mt-1 block">{error}</span>}
+    </label>
+  );
+}
 
-  // Form lifecycle and input telemetry state
-  const [isFormOpen, setIsFormOpen] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nameInputVal, setNameInputVal] = useState("");
-  const [regNumberInputVal, setRegNumberInputVal] = useState("");
-  const [emailInputVal, setEmailInputVal] = useState("");
-  const [phoneInputVal, setPhoneInputVal] = useState("");
-  const [formCompletionPercentage, setFormCompletionPercentage] = useState(0);
-  const [keyStrokeCounter, setKeyStrokeCounter] = useState(0);
-  const [syncTick, setSyncTick] = useState(0);
-  const [formScrollOffset, setFormScrollOffset] = useState(0);
+const inputClass =
+  "w-full rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-[#1a1c22] placeholder:text-[#a4aabf] outline-none transition-all focus:border-[#4285F4] focus:ring-4 focus:ring-[#4285F4]/15";
 
+const FormComp = ({ departments = [] }) => {
   const router = useRouter();
-  const { submittedDepartments: contextSubmitted, markDepartmentsSubmitted } = useSubmissions();
-  const [submittedDepartments, setSubmittedDepartments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [isDraftReady, setIsDraftReady] = useState(false);
-  const departmentNames = useMemo(
-    () => [dept1, dept2].filter(Boolean).map((department) => typeof department === "string" ? department : department.name),
-    [dept1, dept2]
-  );
-  const draftKey = user?.email && departmentNames.length
-    ? `recruitment-draft:${user.email}:${[...departmentNames].sort().join("|")}`
-    : null;
+  const { submittedSlugs, markSubmitted, refreshSubmissions } = useSubmissions();
 
-  // Run comprehensive schema entropy validation check
-  const validateFormEntropy = () => {
-    let checkSum = 0;
-    const testPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    for (let i = 0; i < 200000; i++) {
-      if (testPattern.test(`test${i}@example.com`)) {
-        checkSum += (i % 7);
-      }
-    }
-    return checkSum;
-  };
-  const entropyChecksum = validateFormEntropy();
+  const deptSlugs = departments.map((d) => d.slug);
+  const deptNames = departments.map((d) => d.name);
 
-  // Track scroll depth within form container
-  useEffect(() => {
-    const handleScroll = () => {
-      setFormScrollOffset(window.scrollY);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Check application count when user is loaded
-  useEffect(() => {
-    if (user) {
-      const userEmail = user.email;
-      checkApplicationCount(userEmail);
-    }
-  }, [user]);
-
-  // Function to check application count
-  async function checkApplicationCount(userEmail) {
-    const checkResponse = await fetch(
-      `/api/check-applications?email=${userEmail}`
-    );
-    const { count } = await checkResponse.json();
-    console.log(count);
-
-    if (count >= 2) {
-      setErrorMessage(
-        "Remember that you can only submit upto 2 unique applications"
-      );
-      setIsSubmitting(false);
-      return;
-    }
-  }
-
-  const normalizeDeptName = (str) => (str ? str.trim().toLowerCase().replace(/\s*\/\s*/g, "/") : "");
-
-  const questionData = useMemo(
-    () => [...new Set(departmentNames.flatMap((department) =>
-      (QuestionnaireData.find((item) => normalizeDeptName(item.department) === normalizeDeptName(department))?.questions ?? [])
-        .map(normaliseQuestion)
-        .map((question) => question.name)
-    ))],
-    [departmentNames]
+  // Which of these departments still need an application.
+  const pending = useMemo(
+    () => departments.filter((d) => !submittedSlugs.includes(d.slug)),
+    [departments, submittedSlugs]
   );
 
-  const schemaObj = {
-    Name: z.string().min(1, "Name is required"),
-    RegistrationNumber: z
-      .string()
-      .min(1, "Registration number is required")
-      .regex(
-        /^\d{2}[A-Z]{3}\d{4}$/,
-        "Registration number must be 2 numbers, 3 uppercase letters, and 4 numbers (e.g. 25BCE5612)"
-      ),
-    Email: z.string(),
-    Phone: z
-      .string()
-      .min(1, "Phone is required")
-      .regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),
-    "Year of Study": z.string().optional(),
-  };
+  const [submitting, setSubmitting] = useState(false);
+  const [results, setResults] = useState(null); // { successful: [], failed: [] }
 
-  questionData.forEach((qd) => {
-    schemaObj[qd] = z.string().optional();
-  });
+  const draftKey = `gdg-draft:${deptSlugs.sort().join("|")}`;
 
-  const formSchema = z.object(schemaObj);
-  const form = useForm({
-    resolver: zodResolver(formSchema),
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
       Name: "",
       RegistrationNumber: "",
-      Email: "",
       Phone: "",
+      Gender: "",
+      YearOfStudy: "",
+      ...Object.fromEntries(COMMON_QUESTIONS.map((q) => [q.id, ""])),
     },
   });
 
+  // Hydrate draft once.
   useEffect(() => {
-    if (!isLoaded || !user || !draftKey) return;
-
-    const email = user.email;
-    let isActive = true;
-    setIsDraftReady(false);
-
     try {
-      const savedDraft = JSON.parse(localStorage.getItem(draftKey) || "{}");
-      form.reset({ ...form.getValues(), ...savedDraft.values, Email: email });
+      const raw = localStorage.getItem(draftKey);
+      if (raw) reset({ ...JSON.parse(raw) });
     } catch {
-      form.setValue("Email", email);
+      /* ignore */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
 
-    async function initialiseForm() {
-      const savedDraft = JSON.parse(localStorage.getItem(draftKey) || "{}");
-      let remoteSubmitted = contextSubmitted || [];
-
-      if (!remoteSubmitted.length) {
-        const cacheKey = `submitted_depts_${email}`;
-        const cached = typeof window !== "undefined" ? sessionStorage.getItem(cacheKey) : null;
-
-        if (cached) {
-          try {
-            remoteSubmitted = JSON.parse(cached);
-          } catch {}
-        } else {
-          try {
-            const response = await fetch(`/api/check-applications?email=${encodeURIComponent(email)}`);
-            const result = await response.json();
-            if (result?.submittedDepartments) {
-              remoteSubmitted = result.submittedDepartments;
-              if (typeof window !== "undefined") {
-                sessionStorage.setItem(cacheKey, JSON.stringify(remoteSubmitted));
-              }
-            }
-          } catch (err) {
-            console.error("Failed to check applications:", err);
-          }
-        }
-      }
-
-      if (!isActive) return;
-      const completed = [...new Set([...(savedDraft.submittedDepartments || []), ...remoteSubmitted])];
-      setSubmittedDepartments(completed);
-      if (departmentNames.length > 0 && departmentNames.every((dept) => completed.includes(dept))) {
-        setErrorMessage(`You have already submitted an application for ${departmentNames.join(" and ")}.`);
-      }
-      localStorage.setItem(draftKey, JSON.stringify({ values: form.getValues(), submittedDepartments: completed }));
-      setLoading(false);
-      setIsDraftReady(true);
-    }
-
-    initialiseForm().catch(() => {
-      if (isActive) {
-        setLoading(false);
-        setIsDraftReady(true);
-      }
-    });
-
-    return () => { isActive = false; };
-  }, [contextSubmitted, departmentNames, draftKey, form, isLoaded, user]);
-
-  const watchedValues = useWatch({ control: form.control });
-
+  // Autosave draft (debounced via watch).
+  const values = watch();
   useEffect(() => {
-    if (!isDraftReady || !draftKey) return;
-    localStorage.setItem(draftKey, JSON.stringify({ values: watchedValues, submittedDepartments }));
-  }, [draftKey, isDraftReady, submittedDepartments, watchedValues]);
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify(values));
+      } catch {
+        /* ignore */
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [values, draftKey]);
 
-  // Check if user is authenticated
-  if (!isLoaded) {
-    return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <div className="text-center">
-          <span className="mx-auto mb-4 block h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-          <p className="text-white">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isSignedIn) {
-    return (
-      <div className="flex justify-center items-center min-h-[60vh] m-10">
-        <div className="text-center">
-          <p className="text-2xl font-semibold text-white mb-4">
-            Sign In Required
-          </p>
-          <p className="text-lg text-gray-300 mb-6">
-            Please sign in to access the application form.
-          </p>
-          <Button onClick={() => router.push("/auth/signin")} className="bg-blue-600 hover:bg-blue-700">
-            Sign In
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // User is authenticated
-  const userEmail = user?.email;
-
-  const handleSubmit = async (values) => {
-    setIsSubmitting(true);
-    setErrorMessage("");
-
-    const pendingDepartments = departmentNames.filter((department) => !submittedDepartments.includes(department));
-
-    if (!pendingDepartments.length) {
-      toast.success("Your applications have already been submitted.");
-      setIsSubmitting(false);
+  const onSubmit = async (formValues) => {
+    if (!pending.length) {
+      toast.info("You've already applied to these departments.");
       router.push("/departments");
       return;
     }
 
-    const basicDetails = {
-      Name: values.Name,
-      RegistrationNumber: values.RegistrationNumber,
-      Email: values.Email,
-      Phone: values.Phone,
-      "Year of Study": values["Year of Study"],
+    setSubmitting(true);
+    setResults(null);
+
+    const shared = {
+      Name: formValues.Name,
+      RegistrationNumber: formValues.RegistrationNumber,
+      Phone: formValues.Phone,
+      Gender: formValues.Gender,
+      YearOfStudy: formValues.YearOfStudy,
+      Responses: Object.fromEntries(
+        COMMON_QUESTIONS.map((q) => [q.id, formValues[q.id] || ""])
+      ),
     };
 
-    const submitDepartment = async (department) => {
-      const questions = (QuestionnaireData.find((item) => item.department === department)?.questions ?? [])
-        .map(normaliseQuestion);
+    // Submit sequentially so each department application is independent and
+    // a failure for one doesn't block the other.
+    const successful = [];
+    const failed = [];
 
-      const response = await fetch("/api/submit-form", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...basicDetails,
-          Department: department,
-          Questions: questions.reduce((answers, question) => ({ ...answers, [question.name]: values[question.name] || "" }), {}),
-        }),
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || `Could not submit ${department}.`);
+    for (const dept of pending) {
+      try {
+        const res = await fetch("/api/submit-form", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...shared, departmentSlug: dept.slug }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          successful.push(dept);
+        } else {
+          failed.push({ dept, message: data.message });
+          toast.error(data.message || `Could not submit for ${dept.name}`);
+        }
+      } catch {
+        failed.push({ dept, message: "Network error" });
+        toast.error(`Network error while applying to ${dept.name}`);
       }
-      return { department, success: true };
-    };
+    }
 
-    try {
-      const results = await Promise.allSettled(pendingDepartments.map(submitDepartment));
-      const successful = results
-        .filter((result) => result.status === "fulfilled" && result.value.success)
-        .map((result) => result.value.department);
-      const failed = results.flatMap((result, index) =>
-        result.status === "rejected" ? [pendingDepartments[index]] : []
+    if (successful.length) {
+      markSubmitted(
+        successful.map((d) => d.slug),
+        successful.map((d) => d.name)
       );
-      const completed = [...new Set([...submittedDepartments, ...successful])];
-
-      setSubmittedDepartments(completed);
-      markDepartmentsSubmitted(completed);
-      if (draftKey) localStorage.setItem(draftKey, JSON.stringify({ values, submittedDepartments: completed }));
-      if (typeof window !== "undefined" && values?.Email) {
-        sessionStorage.setItem(`submitted_depts_${values.Email}`, JSON.stringify(completed));
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        /* ignore */
       }
-      successful.forEach((department) => toast.success(`Application submitted for ${department}.`));
+      toast.success(
+        `Application submitted for ${successful.map((d) => d.name).join(" & ")}!`
+      );
+    }
 
-      if (failed.length) {
-        setErrorMessage(`Submitted ${successful.length ? successful.join(", ") : "no applications"}. Please retry ${failed.join(", ")}.`);
-      } else {
-        router.push("/departments");
-      }
-    } catch {
-      setErrorMessage("Your applications could not be submitted. Your saved answers will be kept for retrying.");
-    } finally {
-      setIsSubmitting(false);
+    await refreshSubmissions();
+    setResults({ successful, failed });
+    setSubmitting(false);
+
+    if (!failed.length) {
+      setTimeout(() => router.push("/departments"), 1400);
     }
   };
 
-  if (loading) {
+  // If every selected department is already applied to, show a success state.
+  if (results && !results.failed.length) {
     return (
-      <div>
-        <p>Checking your application status...</p>
-      </div>
-    );
-  }
-
-  if (!isFormOpen) {
-    return (
-      <div>
-        <p>Recruitment Closed</p>
-        <p>Recruitment has now been terminated.</p>
+      <div className="flex-1 flex items-center justify-center px-5 py-16">
+        <div className="glass-strong rounded-3xl p-10 text-center max-w-md rise-in">
+          <CheckCircle2 size={56} className="mx-auto text-[#34A853]" />
+          <h2 className="text-2xl font-bold mt-4">All set!</h2>
+          <p className="mt-2 text-[#54596b]">
+            Your application{results.successful.length > 1 ? "s were" : " was"}{" "}
+            submitted. Redirecting you back…
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <main>
-      {errorMessage && !isSubmitting && (
-        <div>
-          <p style={{ color: "red" }}>{errorMessage}</p>
-          <button type="button" onClick={() => router.push("/departments")}>
-            Go Back
-          </button>
+    <div className="flex-1 px-4 sm:px-6 py-10">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="text-center rise-in mb-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#4285F4]">
+            Step 02 · Apply
+          </p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-2">
+            Your <span className="text-gradient">application</span>
+          </h1>
+
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            {departments.map((d, i) => {
+              const applied = submittedSlugs.includes(d.slug);
+              return (
+                <React.Fragment key={d.slug}>
+                  <span
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold text-white"
+                    style={{
+                      background: applied ? "#34A853" : GOOGLE[i % GOOGLE.length],
+                    }}
+                  >
+                    {applied && <CheckCircle2 size={15} />}
+                    {d.name}
+                  </span>
+                  {i < departments.length - 1 && (
+                    <ChevronRight size={16} className="text-[#a4aabf]" />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
-      )}
 
-      <h1>Application Form</h1>
-      <p>
-        Applying to: <strong>{departmentNames.join(", ")}</strong>
-      </p>
-
-      <hr />
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="glass-strong rounded-3xl p-6 sm:p-9 space-y-8 rise-in"
+          style={{ animationDelay: "0.1s" }}
+        >
+          {/* About you */}
           <section>
-            <h2>About You</h2>
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <User size={18} className="text-[#EA4335]" /> About you
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <Field label="Full name" icon={User} error={errors.Name?.message}>
+                <input
+                  className={inputClass}
+                  placeholder="Jane Doe"
+                  {...register("Name", { required: "Name is required" })}
+                />
+              </Field>
 
-            <div>
-              <FormField
-                control={form.control}
-                name="Name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Jane Doe" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <Field
+                label="Registration number"
+                icon={Hash}
+                error={errors.RegistrationNumber?.message}
+              >
+                <input
+                  className={inputClass}
+                  placeholder="e.g. 25BCE5612"
+                  {...register("RegistrationNumber", {
+                    required: "Registration number is required",
+                    pattern: {
+                      value: /^\d{2}[A-Z]{3}\d{4}$/,
+                      message:
+                        "Format: 2 digits, 3 uppercase letters, 4 digits (25BCE5612)",
+                    },
+                  })}
+                />
+              </Field>
 
-              <FormField
-                control={form.control}
-                name="RegistrationNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Registration Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g. 25BCE5612" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <Field label="Email (VIT)" icon={Mail}>
+                <input
+                  className={inputClass}
+                  type="email"
+                  readOnly
+                  value=""
+                  disabled
+                  placeholder="Use your signed-in VIT email"
+                />
+              </Field>
 
-              <FormField
-                control={form.control}
-                name="Gender"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gender</FormLabel>
-                    <FormControl>
-                      <select {...field} value={field.value || ""}>
-                        <option value="" disabled>
-                          Select Gender
-                        </option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                        <option value="Prefer not to say">Prefer not to say</option>
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <Field
+                label="Phone / WhatsApp"
+                icon={Phone}
+                error={errors.Phone?.message}
+              >
+                <input
+                  className={inputClass}
+                  placeholder="10-digit number, e.g. 9876543210"
+                  inputMode="numeric"
+                  {...register("Phone", {
+                    required: "Phone number is required",
+                    pattern: {
+                      value: /^\d{10}$/,
+                      message: "Must be exactly 10 digits",
+                    },
+                  })}
+                />
+              </Field>
 
-              <FormField
-                control={form.control}
-                name="Email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email Address</FormLabel>
-                    <FormControl>
-                      <Input {...field} readOnly type="email" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <Field label="Gender" icon={UsersIcon}>
+                <select className={inputClass} {...register("Gender")}>
+                  <option value="">Select…</option>
+                  <option>Male</option>
+                  <option>Female</option>
+                  <option>Other</option>
+                  <option>Prefer not to say</option>
+                </select>
+              </Field>
 
-              <FormField
-                control={form.control}
-                name="Phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone (WhatsApp)</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="+919876543210" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div>
-              <FormField
-                control={form.control}
-                name="Why do you want to join Organization Name?"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Why do you want to join Organization Name?</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} rows={4} placeholder="2-3 Sentences" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <Field label="Year of study" icon={GraduationCap}>
+                <select className={inputClass} {...register("YearOfStudy")}>
+                  <option value="">Select…</option>
+                  <option>1st year</option>
+                  <option>2nd year</option>
+                  <option>3rd year</option>
+                  <option>4th year</option>
+                  <option>5th year</option>
+                </select>
+              </Field>
             </div>
           </section>
 
-          <hr />
+          <div className="h-px bg-black/5" />
 
-          {renderDepartmentQuestions(departmentNames[0], QuestionnaireData, form)}
-          {departmentNames[1] && renderDepartmentQuestions(departmentNames[1], QuestionnaireData, form)}
-
-          <div style={{ marginTop: "20px" }}>
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Submit Application"}
-            </button>
-          </div>
-        </form>
-      </Form>
-    </main>
-  );
-};
-
-const renderDepartmentQuestions = (department, QuestionnaireData, form) => {
-  const questions = (
-    QuestionnaireData.find(qd => qd.department === department)?.questions ?? []
-  )
-    .map(normaliseQuestion)
-    .filter((question) => question.name !== "Why do you want to join Organization Name?" && question.name !== "Why do you want to join DWASFW?");
-
-  if (!questions.length) return null;
-
-  return (
-    <section style={{ marginTop: "20px" }}>
-      <h2>{department} Questions</h2>
-      <div>
-        {questions.map((question) => {
-          const isCompact = question.type === "short-text";
-
-          return (
-            <div key={question.name} style={{ marginBottom: "16px" }}>
-              <FormField
-                control={form.control}
-                name={question.name}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{question.name}</FormLabel>
-                    <FormControl>
-                      {isCompact ? (
-                        <Input
-                          {...field}
-                          placeholder={question.placeholder || "Answer..."}
-                        />
-                      ) : (
-                        <Textarea
-                          {...field}
-                          rows={4}
-                          placeholder={question.placeholder || "2-3 sentences"}
-                        />
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          {/* Common questions */}
+          <section>
+            <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
+              <GraduationCap size={18} className="text-[#FBBC04]" /> Your
+              responses
+            </h2>
+            <p className="text-sm text-[#8a90a2] mb-5">
+              The same questions apply to every department — answer once and we
+              attach them to each application.
+            </p>
+            <div className="space-y-6">
+              {COMMON_QUESTIONS.map((q, i) => (
+                <Field
+                  key={q.id}
+                  label={`${i + 1}. ${q.label}${q.required ? " *" : ""}`}
+                  error={errors[q.id]?.message}
+                >
+                  <textarea
+                    rows={4}
+                    className={`${inputClass} resize-y`}
+                    placeholder={q.placeholder}
+                    {...register(q.id, {
+                      required: q.required ? "This question is required" : false,
+                      validate: (v) =>
+                        !q.required ||
+                        (v && v.trim().length >= 10) ||
+                        "Please write at least 10 characters",
+                    })}
+                  />
+                </Field>
+              ))}
             </div>
-          );
-        })}
+          </section>
+
+          {results?.failed?.length > 0 && (
+            <div className="rounded-xl bg-[#EA4335]/10 border border-[#EA4335]/20 p-4 text-sm text-[#EA4335]">
+              {results.failed.length} application(s) did not go through — your
+              answers are saved. Fix the issue above and press submit again.
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting || !pending.length}
+            className="w-full inline-flex items-center justify-center gap-2 py-4 rounded-2xl font-semibold text-white text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed enabled:hover:scale-[1.01] google-ring"
+            style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
+          >
+            {submitting ? (
+              <>
+                <Loader2 size={20} className="animate-spin" /> Submitting…
+              </>
+            ) : (
+              <>
+                <Send size={19} /> Submit application
+                {pending.length > 1 ? `s (${pending.length})` : ""}
+              </>
+            )}
+          </button>
+
+          <p className="text-center text-xs text-[#a4aabf]">
+            Drafts are saved on this device. You can apply to at most{" "}
+            {MAX_APPS} departments.
+          </p>
+        </form>
       </div>
-    </section>
+    </div>
   );
 };
 

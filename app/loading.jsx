@@ -1,16 +1,11 @@
 "use client";
 
-// React import
-import React from "react";
-// Component import
-import DWASFWLoader from "@/components/GDGLoader";
+import GDGLoader from "@/components/GDGLoader";
 
-const loading = () => {
+export default function Loading() {
   return (
-    <div>
-      <DWASFWLoader />
-    </div>
+    <main className="min-h-screen">
+      <GDGLoader />
+    </main>
   );
-};
-
-export default loading;
+}

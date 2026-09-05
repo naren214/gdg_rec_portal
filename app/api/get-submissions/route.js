@@ -5,11 +5,10 @@ import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
+// Returns the signed-in user's own applications.
 export async function GET(req) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) {
       return NextResponse.json(
         { message: "Authentication required" },
@@ -17,9 +16,7 @@ export async function GET(req) {
       );
     }
 
-    const user = session.user;
-    const userEmail = user.email;
-
+    const userEmail = session.user.email;
     const { searchParams } = new URL(req.url);
     const email = searchParams.get("email");
 
@@ -30,15 +27,19 @@ export async function GET(req) {
       );
     }
 
-    if (email !== userEmail) {
+    if (email.toLowerCase() !== userEmail.toLowerCase()) {
       return NextResponse.json(
-        { message: "You can only check your own applications" },
+        { message: "You can only view your own applications" },
         { status: 403 }
       );
     }
 
     const db = await connect();
-    const snapshot = await db.collection("formData").where("Email", "==", email).get();
+    const snapshot = await db
+      .collection("formData")
+      .where("Email", "==", email)
+      .get();
+
     const data = snapshot.docs.map((doc) => ({
       id: doc.id,
       _id: doc.id,
@@ -47,12 +48,9 @@ export async function GET(req) {
 
     return NextResponse.json({ data }, { status: 200 });
   } catch (error) {
-    console.error("Error checking applications:", error);
+    console.error("Error fetching submissions:", error);
     return NextResponse.json(
-      {
-        message:
-          "Internal server error inside check-applications dir",
-      },
+      { message: "Could not fetch submissions" },
       { status: 500 }
     );
   }

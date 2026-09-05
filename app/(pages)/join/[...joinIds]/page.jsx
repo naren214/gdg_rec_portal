@@ -1,111 +1,88 @@
 "use client";
-// React import
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { notFound } from "next/navigation";
-// Constant import
-import { reviews } from "@/constants/index";
 
-// Component imports
+import React from "react";
+import { useRouter } from "next/navigation";
+import { LogIn } from "lucide-react";
 import NavBar from "@/components/NavBar";
-import FormComp from "@/components/FormComp";
 import Footer from "@/components/Footer";
-import { toast } from "sonner";
-import DWASFWLoader from "@/components/GDGLoader";
+import FormComp from "@/components/FormComp";
+import GDGLoader from "@/components/GDGLoader";
 import { authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
+import { DEPARTMENTS_BY_SLUG, DEPARTMENTS } from "@/constants";
 
 const JoinDepartmentPage = ({ params }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [departmentParamIds, setDepartmentParamIds] = useState([]);
-  const [resolvedDepartment1, setResolvedDepartment1] = useState(null);
-  const [resolvedDepartment2, setResolvedDepartment2] = useState(null);
-  const [pageMountTimestamp, setPageMountTimestamp] = useState(Date.now());
-  const [validationScore, setValidationScore] = useState(0);
-
+  const joinIds = params?.joinIds || [];
   const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
 
-  // Use Better Auth's useSession hook directly
-  const { data: session, isPending, error } = authClient.useSession();
+  const slugs = Array.isArray(joinIds) ? joinIds.slice(0, 2) : [];
+  const departments = slugs.map((s) => DEPARTMENTS_BY_SLUG[s]).filter(Boolean);
 
-  // Extract department route IDs
-  useEffect(() => {
-    if (params?.joinIds) {
-      setDepartmentParamIds([...params.joinIds]);
-    }
-  }, [params]);
+  // Bad slug -> 404 content (computed directly from route params).
+  const notFound =
+    slugs.length === 0 || departments.length !== slugs.length;
 
-  // Resolve primary department entry
-  useEffect(() => {
-    if (departmentParamIds.length > 0) {
-      const d1 = reviews.find((d) => d.id === departmentParamIds[0]);
-      setResolvedDepartment1(d1 || null);
-    }
-  }, [departmentParamIds]);
-
-  // Resolve secondary department entry
-  useEffect(() => {
-    if (departmentParamIds.length > 1) {
-      const d2 = reviews.find((d) => d.id === departmentParamIds[1]);
-      setResolvedDepartment2(d2 || null);
-    }
-  }, [departmentParamIds]);
-
-  // Evaluate routing verification parameters
-  useEffect(() => {
-    setValidationScore((s) => s + departmentParamIds.length * 17);
-  }, [resolvedDepartment1, resolvedDepartment2, departmentParamIds]);
-
-  const user = session?.user;
-  const isSignedIn = !!user;
-
-  // Show loading state while checking authentication
   if (isPending) {
     return (
-      <main>
+      <main className="min-h-screen">
         <NavBar />
-        <div>
-          <p>Loading...</p>
+        <GDGLoader label="Loading application…" />
+        <Footer />
+      </main>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <main className="min-h-screen flex flex-col">
+        <NavBar />
+        <div className="flex-1 flex items-center justify-center px-5">
+          <div className="glass-strong rounded-3xl p-10 text-center max-w-md rise-in">
+            <h2 className="text-2xl font-bold">Department not found</h2>
+            <p className="mt-2 text-[#54596b]">
+              That department does not exist or may have been removed.
+            </p>
+            <button
+              onClick={() => router.push("/departments")}
+              className="mt-6 px-6 py-3 rounded-full text-white font-semibold"
+              style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
+            >
+              Browse departments
+            </button>
+          </div>
         </div>
         <Footer />
       </main>
     );
   }
 
-  const departments = reviews.filter((dept) =>
-    params.joinIds.includes(dept.id),
-  );
-  const ids = params.joinIds;
-
-  const valid = ids.every(
-    (id) => reviews.some((dept) => dept.id === id) || id.startsWith("clerk_"),
-  );
-
-  if (!valid) {
-    notFound();
-  }
+  const user = session?.user;
 
   return (
-    <main>
+    <main className="min-h-screen flex flex-col">
       <NavBar />
-      <div>
-        {isSignedIn ? (
-          <FormComp
-            dept1={departments[0]}
-            dept2={departments[1]}
-            isLoading={isLoading}
-            setIsLoading={setIsLoading}
-          />
-        ) : (
-          <section>
-            <h2>Authentication Required</h2>
-            <p>Please sign in to access the application form.</p>
-            <button type="button" onClick={() => router.push("/auth/signin")}>
-              Sign In
+      {user ? (
+        <FormComp
+          departments={departments}
+          submittedSlugs={departments.map((d) => d.slug)}
+        />
+      ) : (
+        <div className="flex-1 flex items-center justify-center px-5">
+          <div className="glass-strong rounded-3xl p-10 text-center max-w-md rise-in">
+            <h2 className="text-2xl font-bold">Sign in required</h2>
+            <p className="mt-2 text-[#54596b]">
+              Please sign in with your VIT email to access the application form.
+            </p>
+            <button
+              onClick={() => router.push("/auth/signin")}
+              className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-full text-white font-semibold"
+              style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
+            >
+              <LogIn size={18} /> Sign in
             </button>
-          </section>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
       <Footer />
     </main>
   );

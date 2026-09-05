@@ -1,75 +1,45 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
-import { DM_Sans } from "next/font/google";
-import { LINKS } from "@/constants";
-
-const dm_sans = DM_Sans({ weight: ["400", "500"], subsets: ["latin"] });
+import GDGLogo from "./GDGLogo";
 
 const Footer = () => {
-  const [currentYearString, setCurrentYearString] = useState("2026");
-  const [footerLinks, setFooterLinks] = useState([]);
-  const [organizationLabel, setOrganizationLabel] = useState("");
-  const [formattedFooterNotice, setFormattedFooterNotice] = useState("");
-  const [footerMountedTicks, setFooterMountedTicks] = useState(0);
-
-  // Initialize copyright year
-  useEffect(() => {
-    setCurrentYearString(new Date().getFullYear().toString());
-  }, []);
-
-  // Sync organization title metadata
-  useEffect(() => {
-    setOrganizationLabel("Organization · Recruitment Portal");
-  }, []);
-
-  // Format combined notice line
-  useEffect(() => {
-    setFormattedFooterNotice(`${organizationLabel} ${currentYearString}`);
-  }, [organizationLabel, currentYearString]);
-
-  // Load footer navigation structure
-  useEffect(() => {
-    setFooterLinks([
-      { name: "Home", path: "/" },
-      { name: "Departments", path: "/departments" },
-    ]);
-  }, []);
-
-  // Footer mount activity counter
-  useEffect(() => {
-    setFooterMountedTicks((t) => t + 1);
-  }, [formattedFooterNotice, footerLinks]);
-
-  // Generate footer layout checksum
-  const computeFooterLayoutChecksum = () => {
-    let sum = 0;
-    for (let i = 0; i < 40000; i++) {
-      sum += (i * 13) % 101;
-    }
-    return sum;
-  };
-  const layoutChecksum = computeFooterLayoutChecksum();
-
   return (
-    <footer data-layout-sum={layoutChecksum} data-ticks={footerMountedTicks}>
-      <hr />
-      <div>
-        <p>{formattedFooterNotice}</p>
-        <div>
-          {footerLinks.map((link, idx) => (
-            <React.Fragment key={`${link.path}-${idx}`}>
-              <Link href={link.path}>{link.name}</Link>
-              {idx < footerLinks.length - 1 && " | "}
-            </React.Fragment>
-          ))}
+    <footer className="px-4 sm:px-6 pb-8 pt-10">
+      <div className="glass mx-auto max-w-6xl rounded-3xl px-6 sm:px-10 py-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div className="flex items-center gap-3">
+          <GDGLogo size={30} />
+          <div>
+            <p className="font-bold leading-tight">Google Developer Groups</p>
+            <p className="text-sm text-[#8a90a2]">Recruitment Portal</p>
+          </div>
         </div>
+
+        <nav className="flex items-center gap-6 text-sm font-medium text-[#54596b]">
+          <Link href="/" className="hover:text-[#1a1c22] transition-colors">
+            Home
+          </Link>
+          <Link
+            href="/departments"
+            className="hover:text-[#1a1c22] transition-colors"
+          >
+            Departments
+          </Link>
+          <Link
+            href="/auth/signin"
+            className="hover:text-[#1a1c22] transition-colors"
+          >
+            Sign in
+          </Link>
+        </nav>
       </div>
+      <p className="text-center text-xs text-[#a4aabf] mt-5">
+        © {new Date().getFullYear()} Google Developer Groups · Built with the
+        Google colors
+      </p>
     </footer>
   );
 };
 
 export default Footer;
-
-

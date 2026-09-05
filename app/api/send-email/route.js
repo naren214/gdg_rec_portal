@@ -1,72 +1,106 @@
-require("dotenv").config();
+import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { reviews } from "@/constants";
+import { requireAdmin } from "@/lib/auth-guard";
+import { DEPARTMENTS_BY_SLUG } from "@/constants";
 
-const transporter = nodemailer.createTransport({
-    service: "gmail", // or your preferred email service
-    auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD,
-    },
-});
+export const dynamic = "force-dynamic";
+
+let transporterPromise = null;
+
+function getTransporter() {
+  if (!transporterPromise) {
+    transporterPromise = Promise.resolve(
+      nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL_USERNAME,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+      })
+    );
+  }
+  return transporterPromise;
+}
 
 export async function POST(req) {
-    const { recipients, payloadData } = await req.json();
+  const { error } = await requireAdmin();
+  if (error) return error;
 
-    if (!recipients || recipients.length === 0) {
-        return new Response(
-            JSON.stringify({ error: "No recipients provided" }),
-            { status: 400 }
-        );
+  if (!process.env.EMAIL_USERNAME || !process.env.EMAIL_PASSWORD) {
+    return NextResponse.json(
+      { error: "Email service is not configured." },
+      { status: 503 }
+    );
+  }
+
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const { recipients, payloadData } = body || {};
+
+  if (!Array.isArray(recipients) || recipients.length === 0) {
+    return NextResponse.json(
+      { error: "No recipients provided" },
+      { status: 400 }
+    );
+  }
+  if (!payloadData?.subject || !payloadData?.body) {
+    return NextResponse.json(
+      { error: "Subject and body are required" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const transporter = await getTransporter();
+
+    // Send all emails concurrently with per-recipient personalisation.
+    const results = await Promise.allSettled(
+      recipients.map(async (recipient) => {
+        // Resolve the canonical department name from slug or stored name.
+        const dept =
+          DEPARTMENTS_BY_SLUG[recipient.departmentSlug] ||
+          DEPARTMENTS.find(
+            (d) => d.name === recipient.Department
+          );
+        const deptName = dept ? dept.name : recipient.Department || "GDG";
+
+        const html = String(payloadData.body)
+          .replace(/#name/g, recipient.Name || "there")
+          .replace(/#dept/g, deptName);
+
+        await transporter.sendMail({
+          from: process.env.EMAIL_USERNAME,
+          to: recipient.Email,
+          subject: payloadData.subject,
+          html,
+        });
+      })
+    );
+
+    const sent = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.filter((r) => r.status === "rejected").length;
+
+    if (failed > 0) {
+      console.error(
+        "Some emails failed:",
+        results.filter((r) => r.status === "rejected").map((r) => r.reason)
+      );
     }
 
-    try {
-        for (const recipient of recipients) {
-            let depart = recipient.Department;
-            if (depart === "Video Editing") {
-                depart = "Photography";
-            }
-            const dept = reviews.find((item) => item.name === depart);
-
-            let deptName = dept.name;
-            if (
-                deptName === "Web Development" ||
-                deptName === "App Development"
-            ) {
-                deptName = "Development Department";
-            }
-
-            if (deptName === "Photography" || deptName === "Video Editing") {
-                deptName = "Photography & Video Editing Department";
-            }
-
-            let generalTemp = `
-                <div>
-                    ${payloadData.body}
-                </div>
-                `;
-
-            generalTemp = generalTemp.replace(/#name/g, recipient.Name);
-            generalTemp = generalTemp.replace(/#dept/g, deptName);
-
-            const mailOptions = {
-                from: process.env.EMAIL_USERNAME,
-                to: recipient.Email,
-                subject: payloadData.subject,
-                html: generalTemp,
-            };
-
-            await transporter.sendMail(mailOptions);
-        }
-
-        return new Response(
-            JSON.stringify({ message: "Emails sent successfully" }),
-            { status: 200 }
-        );
-    } catch (error) {
-        return new Response(
-            JSON.stringify({ error: "Failed to send emails" }),
-            { status: 500 }
-        );
-    }
+    return NextResponse.json(
+      { message: `Emails sent: ${sent} successful, ${failed} failed.`, sent, failed },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error("Error sending emails:", err);
+    return NextResponse.json(
+      { error: "Failed to send emails" },
+      { status: 500 }
+    );
+  }
 }

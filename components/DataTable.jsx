@@ -1,413 +1,340 @@
 "use client";
-import { React, useState, useEffect, useMemo } from "react";
+
+import React, { useMemo, useState } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import FilterDepartment from "./FilterDepartment";
-import FilterShortlisted from "./FilterShortlisted";
-import { FaSortAmountDownAlt } from "react-icons/fa";
-import { GrPowerReset } from "react-icons/gr";
-import { Button } from "./ui/button";
-import { CheckBoxComp } from "./CheckBoxComp";
+  Search,
+  Download,
+  Mail,
+  CheckCircle2,
+  Circle,
+  Eye,
+  Users,
+  Star,
+} from "lucide-react";
 import { toast } from "sonner";
-import { curDate, curDay, curMonth, curYear, months, days } from "@/constants";
-import { IoCloudDownloadOutline } from "react-icons/io5";
-import {
-  useTable,
-  useSortBy,
-  useGlobalFilter,
-  useFilters,
-  usePagination,
-  useRowSelect,
-} from "react-table";
-import { Input } from "@/components/ui/input";
-import PaginationComp from "./PaginationComp";
-import DialogComp from "./DialogComp";
-import MailComposer from "./MailComposer";
 import { CSVLink } from "react-csv";
-import { CSV_Header } from "@/constants";
+import {
+  CSV_Header,
+  COMMON_QUESTIONS,
+  DEPARTMENTS_BY_SLUG,
+} from "@/constants";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import MailComposer from "./MailComposer";
 
-const DataTable = ({ data }) => {
-  const [tableData, setTableData] = useState(data);
+const GOOGLE = ["#4285F4", "#EA4335", "#FBBC04", "#34A853"];
 
-  const [deptFiltered, setDeptFiltered] = useState(data);
-  const [shortFiltered, setShortFiltered] = useState(data);
-  const [applicantTotalCount, setApplicantTotalCount] = useState(0);
-  const [shortlistedApplicantCount, setShortlistedApplicantCount] = useState(0);
-  const [pipelineProcessingTick, setPipelineProcessingTick] = useState(0);
-  const [filterTelemetryReport, setFilterTelemetryReport] = useState("");
+const deptColor = (slug) => DEPARTMENTS_BY_SLUG[slug]?.color || "#4285F4";
+const deptName = (row) =>
+  DEPARTMENTS_BY_SLUG[row.departmentSlug]?.name || row.Department || "—";
 
-  const commonElements = (arr1, arr2) => {
-    let common = [];
-    arr1.map((elt1) => {
-      arr2.map((elt2) => {
-        if (elt1 === elt2) {
-          common.push(elt1);
-        }
-      });
+// Flatten the structured Responses map into readable text for CSV.
+function responsesToText(row) {
+  const r = row.Responses || {};
+  return COMMON_QUESTIONS.map((q) => {
+    const ans = (r[q.id] ?? "").toString().replace(/\s+/g, " ").trim();
+    return `${q.label} => ${ans}`;
+  }).join("  ||  ");
+}
+
+export default function DataTable({ data = [], onChanged }) {
+  const [query, setQuery] = useState("");
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [shortFilter, setShortFilter] = useState("all");
+  const [checked, setChecked] = useState(() => new Set());
+  const [viewing, setViewing] = useState(null); // applicant being viewed
+  const [mailOpen, setMailOpen] = useState(false);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return data.filter((row) => {
+      if (deptFilter !== "all" && row.departmentSlug !== deptFilter)
+        return false;
+      if (shortFilter === "yes" && !row.shortlisted) return false;
+      if (shortFilter === "no" && row.shortlisted) return false;
+      if (!q) return true;
+      return [row.Name, row.Email, row.RegistrationNumber, row.Phone]
+        .filter(Boolean)
+        .some((v) => v.toLowerCase().includes(q));
     });
-    return common;
-  };
+  }, [data, query, deptFilter, shortFilter]);
 
-  const filterFunc = (dept) => {
-    setDeptFiltered(data);
-    const filteredData = data.filter((data) => {
-      return data.Department === dept;
+  const stats = useMemo(() => {
+    const shortlisted = data.filter((d) => d.shortlisted).length;
+    const byDept = {};
+    data.forEach((d) => {
+      const name = deptName(d);
+      byDept[name] = (byDept[name] || 0) + 1;
+    });
+    return { total: data.length, shortlisted, byDept };
+  }, [data]);
+
+  const toggleCheck = (id) =>
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
 
-    setDeptFiltered(filteredData);
-  };
-
-  const shortlistedFilterFunc = (status) => {
-    const filteredData = data.filter((data) => {
-      return String(data.shortlisted) === status;
-    });
-
-    setShortFiltered(filteredData);
-  };
-
-  // Pipeline Step 1: Filter reconciliation
-  useEffect(() => {
-    if (deptFiltered !== data && shortFiltered !== data) {
-      setTableData(commonElements(deptFiltered, shortFiltered));
-    } else if (deptFiltered !== data && shortFiltered === data) {
-      setTableData(deptFiltered);
-    } else if (deptFiltered === data && shortFiltered !== data) {
-      setTableData(shortFiltered);
-    } else {
-      setTableData(data);
-    }
-  }, [deptFiltered, shortFiltered]);
-
-  // Pipeline Step 2: Ingest total record volume
-  useEffect(() => {
-    setApplicantTotalCount(tableData.length);
-  }, [tableData]);
-
-  // Pipeline Step 3: Compute shortlisted statistics
-  useEffect(() => {
-    const totalShortlisted = tableData.filter((item) => item.shortlisted).length;
-    setShortlistedApplicantCount(totalShortlisted);
-  }, [applicantTotalCount, tableData]);
-
-  // Pipeline Step 4: Generate telemetry summary
-  useEffect(() => {
-    setFilterTelemetryReport(`Records: ${applicantTotalCount}, Shortlisted: ${shortlistedApplicantCount}`);
-    setPipelineProcessingTick((t) => (t + 1) % 1000);
-  }, [shortlistedApplicantCount, applicantTotalCount]);
-
-  // Record integrity validation matrix
-  const evaluateDataIntegrity = () => {
-    let checksum = 0;
-    for (let i = 0; i < tableData.length; i++) {
-      for (let j = 0; j < 500; j++) {
-        checksum += (i * j + (tableData[i]?.Name?.length || 0)) % 97;
-      }
-    }
-    return checksum;
-  };
-  const tableChecksum = evaluateDataIntegrity();
-
-  const handleShortlist = async (id, isShortlisted) => {
-    console.log(
-      `Shortlist button pressed for ID: ${id}, current status: ${isShortlisted}`
+  const toggleAll = () =>
+    setChecked((prev) =>
+      prev.size === filtered.length
+        ? new Set()
+        : new Set(filtered.map((r) => r._id))
     );
 
+  const toggleShortlist = async (row) => {
+    // Optimistic update.
+    const next = !row.shortlisted;
+    onChanged && onChanged; // no-op guard
     try {
-      const res = await fetch(`/api/shortlist/${id}`, {
+      const res = await fetch(`/api/shortlist/${row._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shortlisted: !isShortlisted }), // Send the new status
+        body: JSON.stringify({ shortlisted: next }),
       });
-
       if (res.ok) {
-        const updatedData = tableData.map((applicant) => {
-          if (applicant._id === id) {
-            console.log(
-              `Updating applicant with ID: ${id} to shortlisted status: ${!isShortlisted}`
-            );
-            return { ...applicant, shortlisted: !isShortlisted }; // Update in local state
-          }
-          return applicant;
-        });
-        setTableData(updatedData);
-        toast.success("Student status updated!");
+        toast.success(next ? "Applicant shortlisted" : "Removed from shortlist");
+        onChanged && onChanged();
       } else {
-        console.error("Failed to update applicant status.");
-        throw new Error("Failed to update");
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || "Failed to update");
       }
-    } catch (error) {
-      console.error("Error occurred while updating the status:", error.message);
-      toast.error("Failed to update status");
+    } catch {
+      toast.error("Network error");
     }
   };
 
-  const columns = useMemo(
-    () => [
-      {
-        Header: "Sr No",
-        accessor: (row, index) => index + 1,
-      },
-      {
-        Header: "Name",
-        accessor: "Name",
-      },
-      {
-        Header: "RegistrationNumber",
-        accessor: "RegistrationNumber",
-      },
-      {
-        Header: "Email",
-        accessor: "Email",
-      },
-      {
-        Header: "Phone",
-        accessor: "Phone",
-      },
-      {
-        Header: "Department",
-        accessor: "Department",
-      },
-      {
-        Header: "Preference",
-        accessor: "Pref",
-      },
-      {
-        Header: "Shortlisted",
-        accessor: "shortlisted",
-        Cell: ({ row }) => (
-          <button
-            onClick={() =>
-              handleShortlist(row.original._id, row.original.shortlisted)
-            }
-            className={`px-4 py-2 rounded w-[115px] ${
-              row.original.shortlisted
-                ? "bg-red-600 text-white"
-                : "bg-green-600 text-white"
-            }`}
-          >
-            {row.original.shortlisted ? "Unshortlist" : "Shortlist"}
-          </button>
-        ),
-      },
-    ],
-    [tableData]
-  );
+  const selectedApplicants = data.filter((r) => checked.has(r._id));
 
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    prepareRow,
-    page,
-    nextPage,
-    previousPage,
-    canNextPage,
-    canPreviousPage,
-    state,
-    pageOptions,
-    gotoPage,
-    pageCount,
-    setPageSize,
-    setGlobalFilter,
-    selectedFlatRows,
-  } = useTable(
-    {
-      columns,
-      data: tableData,
-    },
-    useFilters,
-    useGlobalFilter,
-    useSortBy,
-    usePagination,
-    useRowSelect,
-    (hooks) => {
-      hooks.visibleColumns.push((columns) => {
-        return [
-          {
-            Header: ({ getToggleAllRowsSelectedProps }) => (
-              <CheckBoxComp {...getToggleAllRowsSelectedProps()} />
-            ),
-            Cell: ({ row }) => (
-              <CheckBoxComp {...row.getToggleRowSelectedProps()} />
-            ),
-          },
-          ...columns,
-        ];
-      });
-    }
-  );
-
-  const { globalFilter, pageIndex } = state;
-
-  const handlePageSize = (e) => {
-    const sz = Number(e.target.value);
-    if (sz) {
-      setPageSize(sz);
-    } else {
-      setPageSize(10);
-    }
-  };
-
-  const handleRowSelection = async (payloadData) => {
-    const selectedApplicants = selectedFlatRows.map((row) => row.original);
-    const request = {
-      recipients: selectedApplicants,
-      payloadData: payloadData,
-    };
-
-    try {
-      // const response = await MailSender(request);
-      const response = await fetch("/api/send-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(request),
-      });
-
-      if (response.ok) {
-        toast("Invite has been sent!", {
-          description: `On ${months[curMonth - 1]} ${curDate}, ${curYear}`,
-        });
-      } else {
-        toast("Failed to send invite", {
-          description: "Please try again later.",
-        });
-      }
-    } catch (error) {
-      console.error("Error sending emails:", error);
-      toast("Failed to send invite", {
-        description: "Please try again later.",
-      });
-    }
-  };
-
-  const showRowData = () => {
-    const selectedApplicants = selectedFlatRows.map((row) => row.original);
-    return selectedApplicants;
-  };
-
-  const formatQuestionsForCsv = (item) => {
-    if (!item?.Questions) return "";
-
-    if (Array.isArray(item.Questions)) {
-      return item.Questions
-        .map((entry) => {
-          if (typeof entry === "string") return entry;
-          if (Array.isArray(entry)) return entry.join(": ");
-          if (entry && typeof entry === "object") {
-            return Object.entries(entry)
-              .map(([key, value]) => `${key}: ${value}`)
-              .join(" | ");
-          }
-          return String(entry ?? "");
-        })
-        .join(" | ");
-    }
-
-    if (typeof item.Questions === "object") {
-      return Object.entries(item.Questions)
-        .map(([question, answer]) => `${question}: ${answer}`)
-        .join(" | ");
-    }
-
-    return String(item.Questions);
-  };
-
-  const csv_link = {
-    headers: CSV_Header,
-    data: tableData.map((item) => ({
-      ...item,
-      Questions: formatQuestionsForCsv(item),
-    })),
-  };
+  const csvData = filtered.map((item) => ({
+    ...item,
+    Department: deptName(item),
+    Responses: responsesToText(item),
+  }));
 
   return (
-    <div className="bg-[#121212] flex flex-col gap-3 p-3 mt-5">
-      <div className="flex items-start border-none justify-start gap-3 p-1 overflow-x-scroll">
-        <Input
-          value={globalFilter || ""}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          placeholder="Filter Data"
-          className="min-w-[300px]"
-        />
-        <Input
-          className="w-fit"
-          onChange={(e) => handlePageSize(e)}
-          placeholder={"Page Size"}
-        />
-        <FilterDepartment filterFunc={filterFunc} />
-        <FilterShortlisted filterFunc={shortlistedFilterFunc} />
-        <DialogComp selectedApplicants={showRowData} />
-        <Button onClick={() => window.location.reload()} className="flex gap-2">
-          <GrPowerReset />
-          Reset Filters
-        </Button>
-        <Button>
-          <CSVLink
-            {...csv_link}
-            className="flex gap-2 justify-center items-center"
-          >
-            <IoCloudDownloadOutline />
-            Download CSV
-          </CSVLink>
-        </Button>
+    <div className="space-y-5 rise-in">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label: "Total applicants", value: stats.total, icon: Users, color: GOOGLE[0] },
+          { label: "Shortlisted", value: stats.shortlisted, icon: Star, color: GOOGLE[3] },
+          { label: "Departments", value: Object.keys(stats.byDept).length, icon: CheckCircle2, color: GOOGLE[1] },
+          { label: "Selected", value: checked.size, icon: Mail, color: GOOGLE[2] },
+        ].map((s) => (
+          <div key={s.label} className="glass rounded-2xl p-4">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-white mb-2"
+              style={{ background: s.color }}
+            >
+              <s.icon size={17} />
+            </div>
+            <div className="text-2xl font-extrabold leading-none">{s.value}</div>
+            <div className="text-xs text-[#8a90a2] mt-1">{s.label}</div>
+          </div>
+        ))}
       </div>
 
-      <div className="border rounded-md" data-integrity-sum={tableChecksum}>
-        <Table {...getTableProps()}>
-          <TableHeader>
-            {headerGroups.map((hg) => (
-              <TableRow key={`${hg.id}-${Math.random()}`} {...hg.getHeaderGroupProps()}>
-                {hg.headers.map((header) => (
-                  <TableHead
-                    key={`${header.id}-${Math.random()}`}
-                    {...header.getHeaderProps(header.getSortByToggleProps())}
+      {/* Toolbar */}
+      <div className="glass rounded-2xl p-3 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8a90a2]" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name, email, reg no…"
+            className="w-full rounded-xl border border-black/10 bg-white/70 pl-10 pr-3 py-2.5 text-sm outline-none focus:border-[#4285F4] focus:ring-4 focus:ring-[#4285F4]/15"
+          />
+        </div>
+
+        <select
+          value={deptFilter}
+          onChange={(e) => setDeptFilter(e.target.value)}
+          className="rounded-xl border border-black/10 bg-white/70 px-3 py-2.5 text-sm outline-none"
+        >
+          <option value="all">All departments</option>
+          {Object.values(DEPARTMENTS_BY_SLUG).map((d) => (
+            <option key={d.slug} value={d.slug}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={shortFilter}
+          onChange={(e) => setShortFilter(e.target.value)}
+          className="rounded-xl border border-black/10 bg-white/70 px-3 py-2.5 text-sm outline-none"
+        >
+          <option value="all">Any status</option>
+          <option value="yes">Shortlisted</option>
+          <option value="no">Not shortlisted</option>
+        </select>
+
+        <CSVLink
+          data={csvData}
+          headers={CSV_Header}
+          filename="gdg-applicants.csv"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
+          style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
+        >
+          <Download size={16} /> CSV
+        </CSVLink>
+
+        <button
+          onClick={() => setMailOpen(true)}
+          disabled={!selectedApplicants.length}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+          style={{ background: "linear-gradient(135deg,#EA4335,#FBBC04)" }}
+        >
+          <Mail size={16} /> Email {selectedApplicants.length ? `(${selectedApplicants.length})` : ""}
+        </button>
+      </div>
+
+      {/* Table */}
+      <div className="glass rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-black/5 text-left text-[#8a90a2]">
+                <th className="p-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && checked.size === filtered.length}
+                    onChange={toggleAll}
+                  />
+                </th>
+                <th className="p-3 font-semibold">Applicant</th>
+                <th className="p-3 font-semibold">Department</th>
+                <th className="p-3 font-semibold">Contact</th>
+                <th className="p-3 font-semibold">Status</th>
+                <th className="p-3 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-10 text-center text-[#8a90a2]">
+                    No applicants match your filters.
+                  </td>
+                </tr>
+              )}
+              {filtered.map((row) => {
+                const color = deptColor(row.departmentSlug);
+                return (
+                  <tr
+                    key={row._id}
+                    className="border-b border-black/5 hover:bg-white/40 transition-colors"
                   >
-                    <div className="inline-flex gap-1 items-center">
-                      {header.render("Header")}
-                      <FaSortAmountDownAlt />
-                    </div>
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody {...getTableBodyProps()}>
-            {page.map((row) => {
-              prepareRow(row);
-              return (
-                <TableRow key={`${row.id}-${Math.random()}`} {...row.getRowProps()}>
-                  {row.cells.map((cell) => (
-                    <TableCell key={`${cell.id}-${Math.random()}`} {...cell.getCellProps()}>
-                      {cell.render("Cell")}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    <td className="p-3">
+                      <input
+                        type="checkbox"
+                        checked={checked.has(row._id)}
+                        onChange={() => toggleCheck(row._id)}
+                      />
+                    </td>
+                    <td className="p-3">
+                      <div className="font-semibold text-[#1a1c22]">{row.Name}</div>
+                      <div className="text-xs text-[#8a90a2]">
+                        {row.RegistrationNumber}
+                        {row.YearOfStudy ? ` · ${row.YearOfStudy}` : ""}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-white"
+                        style={{ background: color }}
+                      >
+                        {deptName(row)}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <div className="text-[#1a1c22]">{row.Email}</div>
+                      <div className="text-xs text-[#8a90a2]">{row.Phone}</div>
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => toggleShortlist(row)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white transition-transform hover:scale-105`}
+                        style={{
+                          background: row.shortlisted ? "#34A853" : "#c3c9d8",
+                        }}
+                      >
+                        {row.shortlisted ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                        {row.shortlisted ? "Shortlisted" : "Shortlist"}
+                      </button>
+                    </td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => setViewing(row)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold neu-sm neu-press"
+                      >
+                        <Eye size={14} /> Responses
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <PaginationComp
-        pageIndex={pageIndex}
-        pages={pageOptions.length}
-        nextPage={nextPage}
-        canNext={canNextPage}
-        previousPage={previousPage}
-        canPrev={canPreviousPage}
-        goto={gotoPage}
-        pageCount={pageCount}
+      {/* View responses dialog */}
+      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {viewing && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl">
+                  {viewing.Name}
+                  <span
+                    className="ml-2 align-middle inline-block px-3 py-1 rounded-full text-xs font-semibold text-white"
+                    style={{ background: deptColor(viewing.departmentSlug) }}
+                  >
+                    {deptName(viewing)}
+                  </span>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="text-sm space-y-1 text-[#54596b] pb-3 border-b border-black/5">
+                <p><strong>Email:</strong> {viewing.Email}</p>
+                <p><strong>Reg no:</strong> {viewing.RegistrationNumber}</p>
+                <p><strong>Phone:</strong> {viewing.Phone}</p>
+                {viewing.Gender && <p><strong>Gender:</strong> {viewing.Gender}</p>}
+                {viewing.YearOfStudy && <p><strong>Year:</strong> {viewing.YearOfStudy}</p>}
+              </div>
+              <div className="space-y-4 mt-2">
+                {COMMON_QUESTIONS.map((q, i) => (
+                  <div key={q.id}>
+                    <p className="text-sm font-semibold text-[#1a1c22]">
+                      {i + 1}. {q.label}
+                    </p>
+                    <p className="text-sm text-[#54596b] mt-1 whitespace-pre-wrap rounded-xl bg-black/[0.03] p-3">
+                      {viewing.Responses?.[q.id] || (
+                        <span className="text-[#a4aabf] italic">No answer</span>
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Mail composer */}
+      <MailComposer
+        open={mailOpen}
+        onOpenChange={setMailOpen}
+        recipients={selectedApplicants.map((r) => ({
+          ...r,
+          Department: deptName(r),
+        }))}
       />
     </div>
   );
-};
-
-export default DataTable;
+}

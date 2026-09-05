@@ -1,25 +1,22 @@
-// Font
-import { Inter } from "next/font/google";
-// Providers
-import { ThemeProvider } from "@/components/theme-provider";
+import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { SubmissionsProvider } from "@/components/SubmissionsProvider";
-// Styling
-import "./globals.css";
+import Backdrop from "@/components/Backdrop";
 
 export const metadata = {
-  title: "Organization Name | Recruitment Portal",
-  description: "Recruitment portal for Organization Name",
+  title: "GDG Recruitment Portal | Google Developer Groups",
+  description:
+    "Join Google Developer Groups on campus — explore our 12 departments and apply to up to two teams.",
+  icons: { icon: "/gdg.svg" },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <SubmissionsProvider>
-          {children}
-          <Toaster />
-        </SubmissionsProvider>
+        <Backdrop />
+        <SubmissionsProvider>{children}</SubmissionsProvider>
+        <Toaster richColors position="top-center" />
       </body>
     </html>
   );

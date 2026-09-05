@@ -1,75 +1,58 @@
 "use client";
-import React, { useState, useEffect } from "react";
 
-const CountdownTimer = ({ targetDate = "2026-08-23T23:59:59+05:30", className = "" }) => {
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  });
+import React, { useEffect, useState } from "react";
+
+const COLORS = ["#4285F4", "#EA4335", "#FBBC04", "#34A853"];
+
+function getRemaining(target) {
+  const diff = new Date(target).getTime() - Date.now();
+  if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, done: true };
+  return {
+    days: Math.floor(diff / 86400000),
+    hours: Math.floor((diff % 86400000) / 3600000),
+    minutes: Math.floor((diff % 3600000) / 60000),
+    seconds: Math.floor((diff % 60000) / 1000),
+    done: false,
+  };
+}
+
+const CountdownTimer = ({ targetDate, className = "" }) => {
+  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, done: false });
 
   useEffect(() => {
-    const target = new Date(targetDate).getTime();
-
-    const calculateTimeLeft = () => {
-      const now = new Date().getTime();
-      const difference = target - now;
-
-      if (difference > 0) {
-        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor(
-          (difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-        );
-        const minutes = Math.floor(
-          (difference % (1000 * 60 * 60)) / (1000 * 60)
-        );
-        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-
-        setTimeLeft({ days, hours, minutes, seconds });
-      } else {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-      }
-    };
-
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
-
-    return () => clearInterval(timer);
+    if (!targetDate) return;
+    setTime(getRemaining(targetDate));
+    const id = setInterval(() => setTime(getRemaining(targetDate)), 1000);
+    return () => clearInterval(id);
   }, [targetDate]);
 
-  const TimeUnit = ({ value, label }) => (
-    <div className="flex flex-col items-center">
-      <div className="relative">
-        <div className=" ">
-          <div className="font-bold text-white tracking-wider">
-            {value.toString().padStart(2, "0")}
-          </div>
-        </div>
-      </div>
-      <div className="text-gray-400 text-[10px] uppercase tracking-wide">
-        {label}
-      </div>
-    </div>
-  );
+  const units = [
+    { label: "Days", value: time.days },
+    { label: "Hours", value: time.hours },
+    { label: "Minutes", value: time.minutes },
+    { label: "Seconds", value: time.seconds },
+  ];
 
   return (
-    <div className={`flex flex-col items-center justify-center ${className}`}>
-      <div className="flex gap-3">
-        <TimeUnit value={timeLeft.days} label="Days" />
-        <div className="flex items-center text-2xl text-gray-500 font-bold">
-          :
-        </div>
-        <TimeUnit value={timeLeft.hours} label="Hours" />
-        <div className="flex items-center text-2xl text-gray-500 font-bold">
-          :
-        </div>
-        <TimeUnit value={timeLeft.minutes} label="Minutes" />
-        <div className="flex items-center text-2xl text-gray-500 font-bold">
-          :
-        </div>
-        <TimeUnit value={timeLeft.seconds} label="Seconds" />
-      </div>
+    <div className={`flex items-center justify-center gap-2 sm:gap-3 ${className}`}>
+      {units.map((unit, i) => (
+        <React.Fragment key={unit.label}>
+          <div className="neu-sm flex flex-col items-center justify-center w-16 h-18 sm:w-20 sm:h-20 py-2">
+            <span
+              className="text-2xl sm:text-3xl font-bold tabular-nums leading-none"
+              style={{ color: COLORS[i] }}
+            >
+              {String(unit.value).padStart(2, "0")}
+            </span>
+            <span className="text-[10px] uppercase tracking-widest text-[#8a90a2] mt-1">
+              {unit.label}
+            </span>
+          </div>
+          {i < units.length - 1 && (
+            <span className="text-xl font-bold text-[#c3c9d8] -mt-4">:</span>
+          )}
+        </React.Fragment>
+      ))}
     </div>
   );
 };

@@ -1,486 +1,119 @@
 "use client";
 
+import React, { useState } from "react";
+import { Send, Loader2, Mail } from "lucide-react";
+import { toast } from "sonner";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-
-import { mailingTemplate } from "@/constants";
-
-import OrderedList from "@tiptap/extension-ordered-list";
-import BulletList from "@tiptap/extension-bullet-list";
-import Blockquote from "@tiptap/extension-blockquote";
-import Document from "@tiptap/extension-document";
-import Heading from "@tiptap/extension-heading";
-import Paragraph from "@tiptap/extension-paragraph";
-import Text from "@tiptap/extension-text";
-
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-
-import { useState } from "react";
-import { Button } from "./ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { CiWarning } from "react-icons/ci";
-import { Input } from "./ui/input";
 
-export default function MailComposer({ recipients, handleRowSelection }) {
-    const [payloadData, setPayloadData] = useState({
-        subject: "",
-        body: "",
-        mailType: "",
-    });
+export default function MailComposer({ open, onOpenChange, recipients = [] }) {
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState(
+    "Hi #name,\n\nCongratulations! We're excited to invite you to the next round for the #dept team at GDG.\n\nSee you soon!"
+  );
+  const [sending, setSending] = useState(false);
 
-    const [confirm, setConfirm] = useState(false);
+  const send = async () => {
+    if (!subject.trim() || !body.trim()) {
+      toast.error("Please add a subject and message.");
+      return;
+    }
+    setSending(true);
+    try {
+      // Convert plain-text newlines to <br> for HTML email.
+      const html = body
+        .split("\n")
+        .map((line) => `<p style="margin:0 0 10px">${line}</p>`)
+        .join("");
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipients,
+          payloadData: { subject, body: html },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success(data.message || "Emails sent!");
+        onOpenChange(false);
+      } else {
+        toast.error(data.error || "Failed to send emails");
+      }
+    } catch {
+      toast.error("Network error while sending");
+    } finally {
+      setSending(false);
+    }
+  };
 
-    const templateTypes = ["Blank", "Interview Invite"];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Mail size={20} className="text-[#4285F4]" /> Email{" "}
+            {recipients.length} recipient{recipients.length === 1 ? "" : "s"}
+          </DialogTitle>
+          <DialogDescription>
+            Use <code className="rounded bg-black/5 px-1">#name</code> for the
+            applicant&apos;s name and{" "}
+            <code className="rounded bg-black/5 px-1">#dept</code> for their
+            department.
+          </DialogDescription>
+        </DialogHeader>
 
-    const editor = useEditor({
-        extensions: [
-            StarterKit,
-            Document,
-            Paragraph,
-            Text,
-            Heading.configure({
-                levels: [1], // All heading levels
-                HTMLAttributes: {
-                    class: `text-4xl font-bold`,
-                },
-            }),
-            Blockquote.configure({
-                HTMLAttributes: {
-                    class: "border-l-2 border-gray-800 pl-4 opacity-[80%]",
-                },
-            }),
-            BulletList.configure({
-                HTMLAttributes: {
-                    class: "list-disc ml-5",
-                },
-            }),
-            OrderedList.configure({
-                HTMLAttributes: {
-                    class: "list-decimal ml-5",
-                },
-            }),
-        ],
-        content: "",
-        onUpdate: () => {
-            setPayloadData( (prev) => ({ ...payloadData, body: editor.getHTML() }));
-            
-        },
-        editorProps: {
-            attributes: {
-                class: "min-h-[150px] cursor-text rounded-md border p-5 ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ",
-            },
-        },
-    });
+        <div className="space-y-4">
+          <input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Subject"
+            className="w-full rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#4285F4] focus:ring-4 focus:ring-[#4285F4]/15"
+          />
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={9}
+            placeholder="Write your message…"
+            className="w-full rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#4285F4] focus:ring-4 focus:ring-[#4285F4]/15 resize-y"
+          />
 
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline">Custom Mail</Button>
-            </DialogTrigger>
-            <DialogContent
-                className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[75vw] overflow-x-hidden"
-            >
-                <DialogHeader>
-                    <DialogTitle>Send Custom Mail</DialogTitle>
-                    <DialogDescription>
-                        Send customized mails to {recipients} selected
-                        recipients.
-                    </DialogDescription>
-                </DialogHeader>
-                {recipients !== 0 ? (
-                    <div className="flex flex-col gap-3 justify-between">
-                        <div className="flex flex-col gap-3">
-                            <div className="flex gap-3 items-center justify-evenly">
-                                {/* Subject */}
-                                <Input
-                                    className="max-w-[73vw]"
-                                    placeholder="Subject"
-                                    onChange={(e) =>
-                                        setPayloadData({
-                                            ...payloadData,
-                                            subject: e.target.value,
-                                        })
-                                    }
-                                />
-                                {/* Select Template */}
-                                <Select
-                                    onValueChange={(value) => {
-                                        switch (value) {
-                                            case "Blank":
-                                                editor.commands.setContent("");
-                                                break;
-                                            case "Interview Invite":
-                                                setPayloadData({
-                                                    ...payloadData,
-                                                    mailType: value,
-                                                });
-                                                editor.commands.setContent(
-                                                    mailingTemplate.Interview
-                                                );
-                                                break;
-                                            default:
-                                                editor.commands.setContent("");
-                                        }
-                                    }}
-                                >
-                                    <SelectTrigger className="max-w-[73vw]">
-                                        <SelectValue placeholder="Templates" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {templateTypes.map((tmp_type) => (
-                                            <SelectItem key={tmp_type} value={tmp_type}>
-                                                {tmp_type}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex gap-1 pb-3 max-w-[71vw] overflow-x-scroll">
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .toggleBold()
-                                            .run()
-                                    }
-                                    disabled={
-                                        !editor
-                                            .can()
-                                            .chain()
-                                            .focus()
-                                            .toggleBold()
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("bold")
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Bold
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .toggleItalic()
-                                            .run()
-                                    }
-                                    disabled={
-                                        !editor
-                                            .can()
-                                            .chain()
-                                            .focus()
-                                            .toggleItalic()
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("italic")
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Italic
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .toggleStrike()
-                                            .run()
-                                    }
-                                    disabled={
-                                        !editor
-                                            .can()
-                                            .chain()
-                                            .focus()
-                                            .toggleStrike()
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("strike")
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Strike
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .toggleCode()
-                                            .run()
-                                    }
-                                    disabled={
-                                        !editor
-                                            .can()
-                                            .chain()
-                                            .focus()
-                                            .toggleCode()
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("code")
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Code
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .unsetAllMarks()
-                                            .run()
-                                    }
-                                >
-                                    Clear marks
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .clearNodes()
-                                            .run()
-                                    }
-                                >
-                                    Clear nodes
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .setParagraph()
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("paragraph")
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Paragraph
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .toggleHeading({ level: 1 })
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("heading", { level: 1 })
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Heading
-                                </Button>
+          <div className="flex flex-wrap gap-1.5">
+            {recipients.slice(0, 8).map((r) => (
+              <span
+                key={r.Email}
+                className="text-xs px-2.5 py-1 rounded-full bg-black/5 text-[#54596b]"
+              >
+                {r.Name}
+              </span>
+            ))}
+            {recipients.length > 8 && (
+              <span className="text-xs px-2.5 py-1 text-[#8a90a2]">
+                +{recipients.length - 8} more
+              </span>
+            )}
+          </div>
 
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .toggleBulletList()
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("bulletList")
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Bullet list
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .toggleOrderedList()
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("orderedList")
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Ordered list
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .toggleCodeBlock()
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("codeBlock")
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Code block
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .toggleBlockquote()
-                                            .run()
-                                    }
-                                    className={
-                                        editor.isActive("blockquote")
-                                            ? "is-active"
-                                            : ""
-                                    }
-                                >
-                                    Blockquote
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .setHorizontalRule()
-                                            .run()
-                                    }
-                                >
-                                    Horizontal rule
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor
-                                            .chain()
-                                            .focus()
-                                            .setHardBreak()
-                                            .run()
-                                    }
-                                >
-                                    Hard break
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor.chain().focus().undo().run()
-                                    }
-                                    disabled={
-                                        !editor
-                                            .can()
-                                            .chain()
-                                            .focus()
-                                            .undo()
-                                            .run()
-                                    }
-                                >
-                                    Undo
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() =>
-                                        editor.chain().focus().redo().run()
-                                    }
-                                    disabled={
-                                        !editor
-                                            .can()
-                                            .chain()
-                                            .focus()
-                                            .redo()
-                                            .run()
-                                    }
-                                >
-                                    Redo
-                                </Button>
-                            </div>
-                            <EditorContent editor={editor} />
-                        </div>
-                        <DialogFooter className="flex gap-3">
-                            {!confirm ? (
-                                <div className="flex gap-1 items-center justify-center">
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setConfirm(true)}
-                                    >
-                                        Verify Mail
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="flex gap-1 items-center justify-center">
-                                    <Button
-                                        variant="outline"
-                                        className="opacity-[40%] cursor-not-allowed text-gray-600 hover:opacity-[40%]"
-                                    >
-                                        Verified
-                                    </Button>
-                                </div>
-                            )}
-                            <Button
-                                type="submit"
-                                onClick={() => {
-                                    if (confirm) {
-                                        handleRowSelection(payloadData);
-                                        setConfirm(false);
-                                    }
-                                }}
-                                className={
-                                    !confirm &&
-                                    "opacity-[40%] cursor-not-allowed text-gray-600 hover:opacity-[40%]"
-                                }
-                            >
-                                Send Mail
-                            </Button>
-                        </DialogFooter>
-                    </div>
-                ) : (
-                    <p>
-                        <p className="flex gap-3 items-center justify-start font-light text-md text-red-500">
-                            <CiWarning /> No recipients selected
-                        </p>
-                    </p>
-                )}
-            </DialogContent>
-        </Dialog>
-    );
+          <button
+            onClick={send}
+            disabled={sending}
+            className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white disabled:opacity-60"
+            style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
+          >
+            {sending ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Send size={18} />
+            )}
+            Send emails
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }

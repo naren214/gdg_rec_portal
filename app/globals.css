@@ -2,8 +2,312 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Self-hosted fonts — Product Sans is Google's brand typeface.
+   Self-hosting avoids build-time Google Fonts network fetches
+   (faster, offline-build friendly, no third-party requests).
+   ============================================================ */
+@font-face {
+  font-family: "Product Sans";
+  src: url("/assets/fonts/ProductSansRegular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Product Sans";
+  src: url("/assets/fonts/Product Sans Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Product Sans";
+  src: url("/assets/fonts/Product Sans Italic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Product Sans";
+  src: url("/assets/fonts/Product Sans Bold Italic.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  /* Google brand palette */
+  --g-blue: #4285f4;
+  --g-red: #ea4335;
+  --g-yellow: #fbbc04;
+  --g-green: #34a853;
+
+  --bg: #f6f8fd;
+  --bg-2: #eef2fb;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-solid: #ffffff;
+  --surface-2: #eef2fb;
+  --ink: #1a1c22;
+  --ink-soft: #54596b;
+  --ink-faint: #8a90a2;
+  --border: rgba(20, 24, 60, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.65);
+
+  /* Neumorphic shadow (light) */
+  --neu-shadow: 8px 8px 20px rgba(148, 163, 205, 0.35),
+    -8px -8px 20px rgba(255, 255, 255, 0.95);
+  --neu-shadow-sm: 4px 4px 10px rgba(148, 163, 205, 0.3),
+    -4px -4px 10px rgba(255, 255, 255, 0.9);
+  --neu-inset: inset 5px 5px 12px rgba(148, 163, 205, 0.32),
+    inset -5px -5px 12px rgba(255, 255, 255, 0.95);
+
+  --radius: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   padding: 0;
+  font-family: "Product Sans", system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
+/* ============================================================
+   Animated Google-color aurora background
+   ============================================================ */
+.app-background {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(135deg, #f7f9ff 0%, #eef3ff 45%, #f4f8f1 100%);
+  overflow: hidden;
+}
+
+.aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  will-change: transform;
+}
+.aurora-1 {
+  width: 480px;
+  height: 480px;
+  background: var(--g-blue);
+  top: -140px;
+  left: -120px;
+  animation: float-1 22s ease-in-out infinite;
+}
+.aurora-2 {
+  width: 420px;
+  height: 420px;
+  background: var(--g-red);
+  top: 30%;
+  right: -140px;
+  opacity: 0.35;
+  animation: float-2 26s ease-in-out infinite;
+}
+.aurora-3 {
+  width: 400px;
+  height: 400px;
+  background: var(--g-yellow);
+  bottom: -120px;
+  left: 25%;
+  opacity: 0.4;
+  animation: float-3 24s ease-in-out infinite;
+}
+.aurora-4 {
+  width: 360px;
+  height: 360px;
+  background: var(--g-green);
+  bottom: 10%;
+  left: -120px;
+  opacity: 0.32;
+  animation: float-1 28s ease-in-out infinite reverse;
+}
+
+@keyframes float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(80px, 60px) scale(1.15); }
+}
+@keyframes float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-70px, -50px) scale(1.1); }
+}
+@keyframes float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, -70px) scale(1.2); }
+}
+
+/* Subtle dotted grid overlay */
+.dot-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    rgba(66, 133, 244, 0.14) 1.2px,
+    transparent 1.2px
+  );
+  background-size: 30px 30px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+/* ============================================================
+   Glassmorphism
+   ============================================================ */
+.glass {
+  background: var(--surface);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 40px rgba(31, 45, 102, 0.12);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 16px 50px rgba(31, 45, 102, 0.16);
+}
+
+/* ============================================================
+   Neumorphism
+   ============================================================ */
+.neu {
+  background: var(--bg-2);
+  box-shadow: var(--neu-shadow);
+  border-radius: var(--radius);
+}
+.neu-sm {
+  background: var(--bg-2);
+  box-shadow: var(--neu-shadow-sm);
+  border-radius: 14px;
+}
+.neu-inset {
+  background: var(--bg-2);
+  box-shadow: var(--neu-inset);
+  border-radius: 12px;
+}
+.neu-press {
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.neu-press:hover {
+  transform: translateY(-2px);
+}
+.neu-press:active {
+  box-shadow: var(--neu-inset);
+  transform: translateY(0);
+}
+
+/* ============================================================
+   Gradient text & Google ring
+   ============================================================ */
+.text-gradient {
+  background: linear-gradient(
+    90deg,
+    var(--g-blue) 0%,
+    var(--g-red) 40%,
+    var(--g-yellow) 70%,
+    var(--g-green) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.google-ring {
+  position: relative;
+}
+.google-ring::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--g-blue),
+    var(--g-red),
+    var(--g-yellow),
+    var(--g-green),
+    var(--g-blue)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spin-ring 6s linear infinite;
+  opacity: 0.85;
+}
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes spin-ring {
+  to { --angle: 360deg; }
+}
+
+/* Google dot progress */
+.gdg-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Entrance */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise-in {
+  animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--g-blue), var(--g-green));
+  border-radius: 10px;
+  border: 2px solid var(--bg);
+}
+
+/* Form focus */
+input, textarea, select {
+  font-family: inherit;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .aurora, .google-ring::before, .gdg-dot, .rise-in {
+    animation: none !important;
+  }
+  html { scroll-behavior: auto; }
+}
