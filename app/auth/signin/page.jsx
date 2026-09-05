@@ -6,12 +6,14 @@ import { Mail, Lock, User, Loader2, LogIn, UserPlus, AlertCircle } from "lucide-
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import GDGLogo from "@/components/GDGLogo";
 import GDGLoader from "@/components/GDGLoader";
+import PremiumButton from "@/components/premium/Button";
 import { VIT_DOMAINS_PUBLIC } from "@/components/recruitmentConfig";
 
 const inputClass =
-  "w-full rounded-xl border border-black/10 bg-white/70 px-4 py-3 pl-11 text-[#1a1c22] placeholder:text-[#a4aabf] outline-none transition-all focus:border-[#4285F4] focus:ring-4 focus:ring-[#4285F4]/15";
+  "field-input !pl-11";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -170,11 +172,12 @@ export default function SignInPage() {
               />
             </div>
 
-            <button
+            <PremiumButton
               type="submit"
+              size="lg"
+              ring
               disabled={submitting}
-              className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 enabled:hover:scale-[1.02] mt-2"
-              style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
+              className="w-full !rounded-xl mt-2"
             >
               {submitting ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -183,7 +186,7 @@ export default function SignInPage() {
               ) : (
                 <><UserPlus size={18} /> Create account</>
               )}
-            </button>
+            </PremiumButton>
           </form>
 
           <p className="text-center text-xs text-[#a4aabf] mt-6">

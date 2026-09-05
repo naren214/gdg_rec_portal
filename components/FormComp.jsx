@@ -15,9 +15,11 @@ import {
   CheckCircle2,
   ChevronRight,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { COMMON_QUESTIONS } from "@/constants";
 import { MAX_APPLICATIONS_PER_USER as MAX_APPS } from "@/lib/config";
 import { useSubmissions } from "@/components/SubmissionsProvider";
+import PremiumButton from "@/components/premium/Button";
 import { toast } from "sonner";
 
 const GOOGLE = ["#4285F4", "#EA4335", "#FBBC04", "#34A853"];
@@ -35,8 +37,7 @@ function Field({ label, icon: Icon, error, children }) {
   );
 }
 
-const inputClass =
-  "w-full rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-[#1a1c22] placeholder:text-[#a4aabf] outline-none transition-all focus:border-[#4285F4] focus:ring-4 focus:ring-[#4285F4]/15";
+const inputClass = "field-input";
 
 const FormComp = ({ departments = [] }) => {
   const router = useRouter();
@@ -171,14 +172,25 @@ const FormComp = ({ departments = [] }) => {
   if (results && !results.failed.length) {
     return (
       <div className="flex-1 flex items-center justify-center px-5 py-16">
-        <div className="glass-strong rounded-3xl p-10 text-center max-w-md rise-in">
-          <CheckCircle2 size={56} className="mx-auto text-[#34A853]" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 220, damping: 20 }}
+          className="glass-strong rounded-3xl p-10 text-center max-w-md"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.1 }}
+          >
+            <CheckCircle2 size={60} className="mx-auto text-[#34A853]" />
+          </motion.div>
           <h2 className="text-2xl font-bold mt-4">All set!</h2>
-          <p className="mt-2 text-[#54596b]">
+          <p className="mt-2 text-[#4a5163]">
             Your application{results.successful.length > 1 ? "s were" : " was"}{" "}
             submitted. Redirecting you back…
           </p>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -218,10 +230,12 @@ const FormComp = ({ departments = [] }) => {
           </div>
         </div>
 
-        <form
+        <motion.form
           onSubmit={handleSubmit(onSubmit)}
-          className="glass-strong rounded-3xl p-6 sm:p-9 space-y-8 rise-in"
-          style={{ animationDelay: "0.1s" }}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+          className="glass-strong rounded-3xl p-6 sm:p-9 space-y-8"
         >
           {/* About you */}
           <section>
@@ -352,11 +366,12 @@ const FormComp = ({ departments = [] }) => {
             </div>
           )}
 
-          <button
+          <PremiumButton
             type="submit"
+            size="lg"
+            ring
             disabled={submitting || !pending.length}
-            className="w-full inline-flex items-center justify-center gap-2 py-4 rounded-2xl font-semibold text-white text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed enabled:hover:scale-[1.01] google-ring"
-            style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
+            className="w-full !rounded-2xl"
           >
             {submitting ? (
               <>
@@ -368,13 +383,13 @@ const FormComp = ({ departments = [] }) => {
                 {pending.length > 1 ? `s (${pending.length})` : ""}
               </>
             )}
-          </button>
+          </PremiumButton>
 
           <p className="text-center text-xs text-[#a4aabf]">
             Drafts are saved on this device. You can apply to at most{" "}
             {MAX_APPS} departments.
           </p>
-        </form>
+        </motion.form>
       </div>
     </div>
   );

@@ -3,121 +3,95 @@
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Globe,
-  Smartphone,
-  Palette,
-  Cloud,
-  BrainCircuit,
-  Code2,
-  Gamepad2,
-  Blocks,
-  PenTool,
-  Handshake,
-  Megaphone,
-  Users,
-  Check,
-  ArrowRight,
-  Lock,
+  Globe, Smartphone, Palette, Cloud, BrainCircuit, Code2, Gamepad2,
+  Blocks, PenTool, Handshake, Megaphone, Users, Check, ArrowRight,
+  Lock, Sparkles,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import PremiumButton from "@/components/premium/Button";
+import SectionHeading from "@/components/premium/SectionHeading";
 import { DEPARTMENTS } from "@/constants";
 import { useSubmissions } from "@/components/SubmissionsProvider";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 
 const ICONS = {
-  Globe,
-  Smartphone,
-  Palette,
-  Cloud,
-  BrainCircuit,
-  Code2,
-  Gamepad2,
-  Blocks,
-  PenTool,
-  Handshake,
-  Megaphone,
-  Users,
+  Globe, Smartphone, Palette, Cloud, BrainCircuit, Code2, Gamepad2,
+  Blocks, PenTool, Handshake, Megaphone, Users,
 };
 
-const DepartmentCard = ({
-  dept,
-  selected,
-  submitted,
-  disabled,
-  onToggle,
-  index,
-}) => {
+const DepartmentCard = ({ dept, selected, submitted, disabled, onToggle, index }) => {
   const Icon = ICONS[dept.icon] || Globe;
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onToggle}
       disabled={disabled}
-      className="group relative text-left rounded-3xl p-6 transition-all duration-300 rise-in disabled:cursor-not-allowed"
+      initial={{ opacity: 0, y: 26, scale: 0.98 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-40px" }}
+      transition={{ duration: 0.5, delay: (index % 3) * 0.07, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={disabled ? undefined : { y: -6 }}
+      whileTap={disabled ? undefined : { scale: 0.98 }}
+      className="relative text-left rounded-3xl p-6 transition-colors duration-300 disabled:cursor-not-allowed h-full"
       style={{
-        animationDelay: `${index * 0.04}s`,
         background: selected
-          ? `linear-gradient(135deg, ${dept.color}14, ${dept.color}05)`
-          : "rgba(255,255,255,0.7)",
-        backdropFilter: "blur(16px)",
-        border: selected
-          ? `2px solid ${dept.color}`
-          : "1px solid rgba(20,24,60,0.08)",
+          ? `linear-gradient(135deg, ${dept.color}16, ${dept.color}05)`
+          : "rgba(255,255,255,0.72)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        border: selected ? `2px solid ${dept.color}` : "1px solid rgba(20,24,60,0.08)",
         boxShadow: selected
-          ? `0 18px 40px ${dept.color}33`
-          : "0 10px 30px rgba(31,45,102,0.08)",
+          ? `0 22px 50px ${dept.color}33`
+          : "0 12px 34px rgba(31,45,102,0.08)",
         opacity: disabled && !submitted ? 0.55 : 1,
       }}
     >
-      {/* accent blob */}
       <span
-        className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-2xl opacity-20 group-hover:opacity-40 transition-opacity"
+        className="absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-20 pointer-events-none"
         style={{ background: dept.color }}
       />
 
-      <div className="flex items-start justify-between">
-        <span
-          className="flex items-center justify-center w-12 h-12 rounded-2xl text-white shadow-lg transition-transform group-hover:scale-110"
-          style={{ background: dept.color, boxShadow: `0 10px 22px ${dept.color}55` }}
+      <div className="flex items-start justify-between relative z-10">
+        <motion.span
+          className="flex items-center justify-center w-[52px] h-[52px] rounded-2xl text-white"
+          style={{ background: dept.color, boxShadow: `0 14px 28px ${dept.color}55` }}
         >
-          {submitted ? <Lock size={22} /> : <Icon size={22} />}
-        </span>
+          {submitted ? <Lock size={22} /> : <Icon size={24} />}
+        </motion.span>
 
-        <span
-          className="flex items-center justify-center w-7 h-7 rounded-full border-2 transition-all"
-          style={{
+        <motion.span
+          className="flex items-center justify-center w-7 h-7 rounded-full border-2"
+          animate={{
             borderColor: submitted || selected ? dept.color : "#c9cfdd",
             background: submitted || selected ? dept.color : "transparent",
+            scale: selected ? [1, 1.25, 1] : 1,
           }}
         >
           {(submitted || selected) && <Check size={15} className="text-white" />}
-        </span>
+        </motion.span>
       </div>
 
-      <h3 className="mt-4 text-lg font-bold tracking-tight flex items-center gap-2">
-        {dept.name}
-      </h3>
-      <p className="mt-2 text-sm leading-relaxed text-[#54596b]">
-        {dept.description}
-      </p>
+      <h3 className="mt-4 text-lg font-bold tracking-tight">{dept.name}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-[#4a5163]">{dept.description}</p>
 
-      <div className="mt-4">
+      <div className="mt-4 flex items-center gap-2">
         <span
-          className="text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full"
+          className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full"
           style={{ background: `${dept.color}18`, color: dept.color }}
         >
           {dept.category}
         </span>
         {submitted && (
-          <span className="ml-2 text-xs font-semibold text-[#34A853]">
-            Applied
+          <span className="text-xs font-bold text-[#34A853] inline-flex items-center gap-1">
+            <Check size={13} /> Applied
           </span>
         )}
       </div>
-    </button>
+    </motion.button>
   );
 };
 
@@ -132,7 +106,7 @@ const DepartmentsListPage = () => {
 
   const toggle = (slug) => {
     if (submittedSet.has(slug)) {
-      toast.info("You've already applied to this department.");
+      toast.info("You have already applied to this department.");
       return;
     }
     setSelected((cur) => {
@@ -155,35 +129,30 @@ const DepartmentsListPage = () => {
     router.push(`/join/${selected.join("/")}`);
   };
 
-  const technical = DEPARTMENTS.filter((d) => d.category === "technical");
-  const nonTechnical = DEPARTMENTS.filter((d) => d.category === "non-technical");
+  const groups = [
+    { title: "Technical", list: DEPARTMENTS.filter((d) => d.category === "technical") },
+    { title: "Non-technical", list: DEPARTMENTS.filter((d) => d.category === "non-technical") },
+  ];
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="min-h-screen flex flex-col noise">
       <NavBar />
 
-      <section className="flex-1 px-5 sm:px-8 max-w-6xl mx-auto w-full pt-10 pb-40">
-        <div className="text-center rise-in">
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#4285F4]">
-            Step 01 · Select
-          </p>
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight mt-2">
-            Pick your <span className="text-gradient">departments</span>
-          </h1>
-          <p className="mt-4 text-[#54596b] max-w-xl mx-auto">
-            Choose up to <strong>two</strong> teams you would like to join. You
-            can always apply to more later — as long as you have not already
-            applied to them.
-          </p>
-        </div>
+      <section className="flex-1 px-4 sm:px-8 max-w-6xl mx-auto w-full pt-14 pb-44">
+        <SectionHeading
+          kicker="Step 01 · Select"
+          title="Pick your"
+          highlight="departments"
+          subtitle="Choose up to two teams you would like to join. Departments you have already applied to are locked in."
+        />
 
-        {[
-          { title: "Technical", list: technical },
-          { title: "Non-technical", list: nonTechnical },
-        ].map((group) => (
-          <div key={group.title} className="mt-12">
-            <h2 className="text-xl font-bold mb-5 flex items-center gap-3">
-              <span className="w-1.5 h-6 rounded-full" style={{ background: "linear-gradient(#4285F4,#34A853)" }} />
+        {groups.map((group) => (
+          <div key={group.title} className="mt-14">
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
+              <span
+                className="w-1.5 h-7 rounded-full"
+                style={{ background: "linear-gradient(#4285F4,#34A853)" }}
+              />
               {group.title}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -208,29 +177,37 @@ const DepartmentsListPage = () => {
       </section>
 
       {/* Sticky action bar */}
-      <div className="fixed bottom-0 inset-x-0 z-40 px-4 pb-5">
-        <div className="glass-strong max-w-6xl mx-auto rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-sm font-medium text-[#54596b]">
-            {selected.length === 0 ? (
-              <>Select up to <strong className="text-[#1a1c22]">2</strong> departments</>
-            ) : (
-              <>
-                <strong className="text-[#1a1c22]">{selected.length}</strong> of{" "}
-                {remainingSlots} slot{remainingSlots === 1 ? "" : "s"} selected
-              </>
-            )}
+      <AnimatePresence>
+        <motion.div
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3, type: "spring", stiffness: 200, damping: 24 }}
+          className="fixed bottom-0 inset-x-0 z-40 px-4 pb-5"
+        >
+          <div className="glass-strong max-w-6xl mx-auto rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-sm font-medium text-[#4a5163] flex items-center gap-2">
+              <Sparkles size={16} className="text-[#FBBC04]" />
+              {selected.length === 0 ? (
+                <>Select up to <strong className="text-[#14181f]">2</strong> departments</>
+              ) : (
+                <>
+                  <strong className="text-[#14181f]">{selected.length}</strong> of{" "}
+                  {remainingSlots} slot{remainingSlots === 1 ? "" : "s"} selected
+                </>
+              )}
+            </div>
+            <PremiumButton
+              onClick={continueToForm}
+              disabled={!selected.length}
+              className="w-full sm:w-auto"
+            >
+              Continue to application <ArrowRight size={18} />
+            </PremiumButton>
           </div>
-          <button
-            type="button"
-            onClick={continueToForm}
-            disabled={!selected.length}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:scale-105"
-            style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
-          >
-            Continue to application <ArrowRight size={18} />
-          </button>
-        </div>
-      </div>
+        </motion.div>
+      </AnimatePresence>
+
+      <Footer />
     </main>
   );
 };

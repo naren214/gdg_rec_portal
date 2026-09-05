@@ -1,12 +1,20 @@
 import NavBar from "@/components/NavBar";
-import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
+import LandingHero from "@/components/sections/LandingHero";
+import StatsBand from "@/components/sections/StatsBand";
+import HowItWorks from "@/components/sections/HowItWorks";
+import DepartmentsShowcase from "@/components/sections/DepartmentsShowcase";
+import CallToAction from "@/components/sections/CallToAction";
 
 const Home = () => {
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="min-h-screen flex flex-col noise">
       <NavBar />
-      <Hero />
+      <LandingHero />
+      <StatsBand />
+      <HowItWorks />
+      <DepartmentsShowcase />
+      <CallToAction />
       <Footer />
     </main>
   );
