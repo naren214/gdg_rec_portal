@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Lock, LogIn, Mail, User, UserPlus } from "lucide-react";
+import { ArrowRight, Chrome, Lock, LogIn, Mail, User, UserPlus } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -41,6 +41,26 @@ export default function SignInPage() {
     finally { setSubmitting(false); }
   };
 
+  const handleGoogleSignIn = async () => {
+    setSubmitting(true);
+    try {
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/departments",
+      });
+
+      if (result?.error) {
+        toast.error(result.error.message || "Google sign-in failed.");
+        setSubmitting(false);
+      }
+      // Better Auth redirects the browser to Google when the provider is configured.
+    } catch (error) {
+      console.error("Google auth error:", error);
+      toast.error("Google sign-in is not configured yet.");
+      setSubmitting(false);
+    }
+  };
+
   return (
     <main className="min-h-screen px-5 py-8 sm:px-8 sm:py-12">
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-[1.75rem] border border-[#dadce0] bg-white lg:grid-cols-[0.9fr_1.1fr]">
@@ -55,7 +75,22 @@ export default function SignInPage() {
               <label className="block"><span className="mb-1.5 block text-sm font-semibold">VIT email</span><div className="relative"><Mail size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5f6368]" aria-hidden="true" /><input type="email" className="field-input pl-10" autoComplete="email" placeholder="name@vitstudent.ac.in" value={email} onChange={(event) => setEmail(event.target.value)} /></div>{mode === "signup" && email && !emailDomainOk && <p className="mt-2 text-xs font-medium text-[#d93025]">Only official VIT emails are accepted.</p>}</label>
               <label className="block"><span className="mb-1.5 block text-sm font-semibold">Password</span><div className="relative"><Lock size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5f6368]" aria-hidden="true" /><input type="password" className="field-input pl-10" autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder="At least 8 characters" value={password} onChange={(event) => setPassword(event.target.value)} /></div></label>
               <PremiumButton type="submit" size="lg" disabled={submitting} className="mt-3 w-full">{submitting ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}<ArrowRight size={17} aria-hidden="true" /></PremiumButton>
-            </form><p className="mt-6 text-xs leading-relaxed text-[#80868b]">By continuing, you confirm that you are applying with your official student email.</p>
+            </form>
+            <div className="my-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#9aa0a6]">
+              <span className="h-px flex-1 bg-[#dadce0]" />
+              <span>or</span>
+              <span className="h-px flex-1 bg-[#dadce0]" />
+            </div>
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={submitting}
+              className="flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-[#dadce0] bg-white px-5 text-sm font-bold text-[#202124] transition-colors hover:border-[#9aa0a6] hover:bg-[#f8f9fa] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Chrome size={18} aria-hidden="true" />
+              Continue with Google
+            </button>
+            <p className="mt-6 text-xs leading-relaxed text-[#80868b]">By continuing, you confirm that you are applying with your official student email.</p>
           </div>
         </motion.section>
       </div>

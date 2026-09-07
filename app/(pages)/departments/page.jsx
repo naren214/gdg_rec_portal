@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Cloud, Code2, Gamepad2, Globe, Handshake, LayoutGrid, Lock, Megaphone, Palette, PenTool, Smartphone, Users } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, Cloud, Code2, Gamepad2, Globe, Handshake, LayoutGrid, Lock, Megaphone, Palette, PenTool, Smartphone, Users, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
@@ -51,10 +51,24 @@ function DepartmentCard({ dept, selected, submitted, disabled, onToggle, index }
 export default function DepartmentsListPage() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
-  const { submittedSlugs } = useSubmissions();
+  const {
+    submittedSlugs,
+    submittedDepartments,
+    recentSubmission,
+    clearRecentSubmission,
+  } = useSubmissions();
   const [selected, setSelected] = useState([]);
+  const [dismissedSubmissionKey, setDismissedSubmissionKey] = useState(null);
   const submittedSet = useMemo(() => new Set(submittedSlugs), [submittedSlugs]);
   const remainingSlots = Math.max(0, 2 - submittedSet.size);
+  const submissionNotice = recentSubmission || (
+    submittedSet.size > 0
+      ? { names: submittedDepartments }
+      : null
+  );
+  const submissionNoticeKey = recentSubmission?.createdAt
+    ? `recent-${recentSubmission.createdAt}`
+    : `submitted-${submittedSlugs.join("|")}`;
 
   const toggle = (slug) => {
     if (submittedSet.has(slug)) return toast.info("You have already applied to this department.");
@@ -78,6 +92,91 @@ export default function DepartmentsListPage() {
   return (
     <main className="min-h-screen">
       <NavBar />
+      <AnimatePresence>
+        {submissionNotice && dismissedSubmissionKey !== submissionNoticeKey && (
+          <motion.section
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12, transition: { duration: 0.2 } }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="container-x pt-10 sm:pt-14"
+            aria-live="polite"
+          >
+            <div className="relative overflow-hidden rounded-[1.75rem] border border-[#dadce0] bg-white shadow-[0_18px_50px_rgba(60,64,67,0.10)]">
+              <div className="flex h-1.5" aria-hidden="true">
+                <motion.span initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.7 }} className="flex-1 origin-left bg-[#4285F4]" />
+                <motion.span initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.7, delay: 0.1 }} className="flex-1 origin-left bg-[#EA4335]" />
+                <motion.span initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.7, delay: 0.2 }} className="flex-1 origin-left bg-[#FBBC04]" />
+                <motion.span initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.7, delay: 0.3 }} className="flex-1 origin-left bg-[#34A853]" />
+              </div>
+
+              <button
+                type="button"
+                aria-label="Dismiss application submitted message"
+                className="absolute right-4 top-5 rounded-full p-2 text-[#80868b] transition-colors hover:bg-[#f1f3f4] hover:text-[#202124] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1a73e8]/20"
+                onClick={() => {
+                  setDismissedSubmissionKey(`submitted-${submittedSlugs.join("|")}`);
+                  clearRecentSubmission();
+                }}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+
+              <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="px-6 py-8 sm:px-10 sm:py-10">
+                  <div className="flex items-start gap-4">
+                    <motion.div
+                      initial={{ scale: 0.6, rotate: -10, opacity: 0 }}
+                      animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 230, damping: 16, delay: 0.15 }}
+                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#e6f4ea] text-[#188038] shadow-[inset_4px_4px_10px_rgba(24,128,56,0.08),inset_-4px_-4px_10px_rgba(255,255,255,0.9)]"
+                    >
+                      <CheckCircle2 size={30} strokeWidth={1.8} aria-hidden="true" />
+                    </motion.div>
+                    <div className="pr-8">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#188038]">Application submitted</p>
+                      <h2 className="mt-2 text-3xl font-bold leading-none tracking-[-0.055em] text-[#202124] sm:text-4xl">You’re officially in.</h2>
+                      <p className="mt-4 max-w-xl text-sm leading-6 text-[#5f6368] sm:text-base">
+                        Your application{submissionNotice.names.length > 1 ? "s have" : " has"} been received. Thank you for taking the time to share what you want to learn and build.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-7 flex flex-wrap gap-2">
+                    {submissionNotice.names.map((name, index) => (
+                      <motion.span
+                        key={`${name}-${index}`}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.35, delay: 0.45 + index * 0.1 }}
+                        className="inline-flex items-center gap-2 rounded-full bg-[#e6f4ea] px-3.5 py-2 text-sm font-bold text-[#188038]"
+                      >
+                        <CheckCircle2 size={15} aria-hidden="true" />
+                        {name}
+                      </motion.span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-[#dadce0] bg-[#f8f9fa] px-6 py-8 sm:px-10 sm:py-10 lg:border-l lg:border-t-0">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#80868b]">What happens next</p>
+                  <div className="mt-5 space-y-4">
+                    <div className="flex gap-3">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#202124] text-xs font-bold text-white">1</span>
+                      <p className="text-sm leading-5 text-[#3c4043]">The team will review your application carefully.</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#202124] text-xs font-bold text-white">2</span>
+                      <p className="text-sm leading-5 text-[#3c4043]">Keep an eye on your VIT email for updates.</p>
+                    </div>
+                  </div>
+                  <p className="mt-7 text-xs leading-5 text-[#80868b]">You can still explore the other departments below, but submitted applications cannot be changed.</p>
+                </div>
+              </div>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
       <section className="page-intro"><div className="container-x"><SignalRule /><h1 className="page-title">Choose the work you want to get better at.</h1><p className="page-subtitle">Select up to two departments. Your selections stay editable until you continue to the application.</p></div></section>
       <section className="container-x pb-40 pt-14 sm:pt-20">
         {groups.map((group) => (

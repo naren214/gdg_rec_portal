@@ -173,6 +173,9 @@ input, textarea, select { font: inherit; }
   box-shadow: var(--neu-inset-shadow);
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
+/* Keep leading icons clear of the typed value. This overrides the base field
+   padding without relying on Tailwind utility order. */
+.field-input.pl-10 { padding-left: 2.5rem; }
 .field-input::placeholder { color: #9aa0a6; }
 .field-input:hover { border-color: rgba(26, 115, 232, 0.28); }
 .field-input:focus { border-color: var(--g-blue); box-shadow: var(--neu-inset-shadow), 0 0 0 3px var(--focus); }
@@ -194,55 +197,6 @@ input, textarea, select { font: inherit; }
 .data-surface:focus-within { border-color: rgba(26, 115, 232, 0.6); }
 .neu-loader-mark { padding: 1rem; border-radius: 999px; background: var(--neu-base); box-shadow: var(--neu-shadow-sm); }
 .neu-countdown { border: 1px solid rgba(255, 255, 255, 0.78) !important; border-radius: var(--radius-sm); background: var(--neu-base); box-shadow: var(--neu-inset-shadow); }
-
-/* Desktop-only cursor detail. It disappears on touch and reduced-motion devices. */
-.cursor-trail { display: none; }
-@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  html.has-cursor-trail,
-  html.has-cursor-trail body,
-  html.has-cursor-trail a,
-  html.has-cursor-trail button,
-  html.has-cursor-trail input,
-  html.has-cursor-trail textarea,
-  html.has-cursor-trail select,
-  html.has-cursor-trail summary {
-    cursor: none !important;
-  }
-
-  .cursor-trail {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    pointer-events: none;
-  }
-  .cursor-trail__arrow {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 1.25rem;
-    height: 1.25rem;
-    pointer-events: none;
-    transform: translate3d(-100px, -100px, 0);
-    transform-origin: 3px 2px;
-    filter: drop-shadow(0 0 0.25rem rgba(26, 115, 232, 0.78))
-      drop-shadow(0 0 0.8rem rgba(26, 115, 232, 0.32));
-    transition: filter 180ms ease, opacity 180ms ease, transform 80ms linear;
-    will-change: transform;
-  }
-  html.cursor-target .cursor-trail__arrow {
-    filter: drop-shadow(0 0 0.35rem rgba(26, 115, 232, 0.92))
-      drop-shadow(0 0 1rem rgba(26, 115, 232, 0.46));
-  }
-  html.cursor-out .cursor-trail__arrow { opacity: 0; }
-  html.cursor-press .cursor-trail__arrow { animation: cursor-press 360ms var(--ease-out); }
-}
-
-@keyframes cursor-press {
-  0% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.24); }
-  45% { box-shadow: 0 0 0 0.5rem rgba(26, 115, 232, 0.08); }
-  100% { box-shadow: 0 0 0 1rem rgba(26, 115, 232, 0); }
-}
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--paper); }

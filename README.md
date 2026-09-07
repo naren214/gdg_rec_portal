@@ -63,8 +63,16 @@ landing-page countdown currently shows a rolling 15-day display timer; the
 server-side `RECRUITMENT_START_AT` and `RECRUITMENT_END_AT` values still
 control application availability.
 
-For production Google sign-in, set `ENABLE_GOOGLE_AUTH=true` and register the
-Better Auth callback URL for the final Vercel domain with Google OAuth.
+For Google sign-in, set `ENABLE_GOOGLE_AUTH=true`, provide the Google OAuth
+client ID and secret, and add this callback URL in Google Cloud Console:
+
+```text
+http://localhost:3000/api/auth/callback/google
+```
+
+For production, add the same path using the final Vercel domain, for example
+`https://your-domain.vercel.app/api/auth/callback/google`, and set
+`BETTER_AUTH_URL` to that production origin.
 
 ---
 

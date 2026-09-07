@@ -11,6 +11,10 @@ import {
   Eye,
   Users,
   Star,
+  ExternalLink,
+  GraduationCap,
+  Hash,
+  Phone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CSVLink } from "react-csv";
@@ -52,6 +56,74 @@ function departmentResponsesToText(row) {
     return `${q.label} => ${ans}`;
   });
   return department.join("  ||  ");
+}
+
+function initialsFor(name) {
+  return (name || "?")
+    .split(" ")
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function ResponseValue({ question, value }) {
+  const answer = String(value ?? "").trim();
+
+  if (!answer) {
+    return <span className="text-sm italic text-[#80868b]">No answer provided</span>;
+  }
+
+  if (question.type === "url" && /^https?:\/\//i.test(answer)) {
+    return (
+      <a
+        href={answer}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex max-w-full items-start gap-2 break-all text-sm font-semibold text-[#1a73e8] underline decoration-[#1a73e8]/30 underline-offset-4 hover:decoration-[#1a73e8]"
+      >
+        <span>{answer}</span>
+        <ExternalLink size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+      </a>
+    );
+  }
+
+  return <p className="whitespace-pre-wrap text-sm leading-6 text-[#3c4043]">{answer}</p>;
+}
+
+function ResponseSection({ eyebrow, title, questions, answers, color }) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-[#dadce0] bg-white shadow-[0_8px_24px_rgba(60,64,67,0.06)]">
+      <header className="flex items-end justify-between gap-4 border-b border-[#dadce0] px-4 py-4 sm:px-5">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#80868b]">{eyebrow}</p>
+          <h3 className="mt-1 text-base font-bold tracking-[-0.02em] text-[#202124]">{title}</h3>
+        </div>
+        <span className="shrink-0 rounded-full bg-[#f1f3f4] px-2.5 py-1 text-xs font-bold text-[#5f6368]">
+          {questions.length} {questions.length === 1 ? "question" : "questions"}
+        </span>
+      </header>
+
+      <div className="divide-y divide-[#eef0f2]">
+        {questions.map((question, index) => (
+          <article key={question.id} className="flex gap-3 px-4 py-5 sm:gap-4 sm:px-5">
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold"
+              style={{ color, backgroundColor: `${color}16` }}
+            >
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold leading-5 text-[#202124]">{question.label}</p>
+              <div className="mt-2.5">
+                <ResponseValue question={question} value={answers?.[question.id]} />
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export default function DataTable({ data = [], onChanged }) {
@@ -324,58 +396,102 @@ export default function DataTable({ data = [], onChanged }) {
         </div>
       </div>
 
-      {/* View responses dialog */}
+      {/* Applicant response review */}
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="!flex !max-h-[90vh] !max-w-4xl !flex-col !gap-0 !overflow-hidden !p-0">
           {viewing && (
             <>
-              <DialogHeader>
-                <DialogTitle className="text-xl">
-                  {viewing.Name}
-                  <span
-                    className="ml-2 align-middle inline-block px-3 py-1 rounded-full text-xs font-semibold text-white"
-                    style={{ background: deptColor(viewing.departmentSlug) }}
-                  >
-                    {deptName(viewing)}
-                  </span>
-                </DialogTitle>
-              </DialogHeader>
-              <div className="text-sm space-y-1 text-[#54596b] pb-3 border-b border-black/5">
-                <p><strong>Email:</strong> {viewing.Email}</p>
-                <p><strong>Reg no:</strong> {viewing.RegistrationNumber}</p>
-                <p><strong>Phone:</strong> {viewing.Phone}</p>
-                {viewing.Gender && <p><strong>Gender:</strong> {viewing.Gender}</p>}
-                {viewing.YearOfStudy && <p><strong>Year:</strong> {viewing.YearOfStudy}</p>}
-              </div>
-              <div className="space-y-4 mt-2">
-                {COMMON_QUESTIONS.map((q, i) => (
-                  <div key={q.id}>
-                    <p className="text-sm font-semibold text-[#1a1c22]">
-                      {i + 1}. {q.label}
-                    </p>
-                    <p className="text-sm text-[#54596b] mt-1 whitespace-pre-wrap rounded-xl bg-black/[0.03] p-3">
-                      {viewing.Responses?.[q.id] || (
-                        <span className="text-[#a4aabf] italic">No answer</span>
-                      )}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-4 mt-6 border-t border-black/5 pt-5">
-                <h3 className="font-bold">Department responses</h3>
-                {getDepartmentQuestions(deptName(viewing)).map((q, i) => (
-                  <div key={q.id}>
-                    <p className="text-sm font-semibold text-[#1a1c22]">
-                      {i + 1}. {q.label}
-                    </p>
-                    <p className="text-sm text-[#54596b] mt-1 whitespace-pre-wrap rounded-xl bg-black/[0.03] p-3">
-                      {viewing.DepartmentResponses?.[viewing.departmentSlug]?.[
-                        q.id
-                      ] || <span className="text-[#a4aabf] italic">No answer</span>}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              {(() => {
+                const color = deptColor(viewing.departmentSlug);
+                const departmentQuestions = getDepartmentQuestions(deptName(viewing));
+                const contactDetails = [
+                  { label: "Email", value: viewing.Email, icon: Mail },
+                  { label: "Registration", value: viewing.RegistrationNumber, icon: Hash },
+                  { label: "Phone", value: viewing.Phone, icon: Phone },
+                  { label: "Year", value: viewing.YearOfStudy || "Not provided", icon: GraduationCap },
+                ];
+
+                return (
+                  <>
+                    <div className="shrink-0 border-b border-[#dadce0] bg-white">
+                      <div className="flex h-1.5 overflow-hidden">
+                        <span className="flex-1 bg-[#4285F4]" />
+                        <span className="flex-1 bg-[#EA4335]" />
+                        <span className="flex-1 bg-[#FBBC04]" />
+                        <span className="flex-1 bg-[#34A853]" />
+                      </div>
+                      <div className="px-5 py-6 sm:px-8 sm:py-7">
+                        <DialogHeader className="pr-8 text-left">
+                          <div className="flex items-start gap-4">
+                            <div
+                              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold text-white shadow-[0_8px_18px_rgba(60,64,67,0.14)]"
+                              style={{ background: color }}
+                            >
+                              {initialsFor(viewing.Name)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <DialogTitle className="text-2xl tracking-[-0.04em] text-[#202124] sm:text-3xl">
+                                  {viewing.Name}
+                                </DialogTitle>
+                                <span
+                                  className="rounded-full px-2.5 py-1 text-xs font-bold"
+                                  style={{ color, backgroundColor: `${color}16` }}
+                                >
+                                  {deptName(viewing)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-sm text-[#5f6368]">Applicant response review</p>
+                            </div>
+                          </div>
+                        </DialogHeader>
+
+                        <div className="mt-6 grid gap-px overflow-hidden rounded-2xl border border-[#dadce0] bg-[#dadce0] sm:grid-cols-2 lg:grid-cols-4">
+                          {contactDetails.map(({ label, value, icon: Icon }) => (
+                            <div key={label} className="bg-[#f8f9fa] px-4 py-3">
+                              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[#80868b]">
+                                <Icon size={14} aria-hidden="true" />
+                                {label}
+                              </div>
+                              <p className="mt-1 truncate text-sm font-semibold text-[#202124]" title={value}>
+                                {value}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between gap-3">
+                          <p className="text-xs text-[#80868b]">
+                            {viewing.Gender ? `${viewing.Gender} · ` : ""}Responses shown as submitted
+                          </p>
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${viewing.shortlisted ? "bg-[#e6f4ea] text-[#188038]" : "bg-[#f1f3f4] text-[#5f6368]"}`}>
+                            {viewing.shortlisted ? "Shortlisted" : "Under review"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="min-h-0 flex-1 overflow-y-auto bg-[#f8f9fa] px-4 py-5 sm:px-7 sm:py-7">
+                      <div className="space-y-6">
+                        <ResponseSection
+                          eyebrow="Shared responses"
+                          title="About the applicant"
+                          questions={COMMON_QUESTIONS}
+                          answers={viewing.Responses}
+                          color={color}
+                        />
+                        <ResponseSection
+                          eyebrow="Department responses"
+                          title={`${deptName(viewing)} application`}
+                          questions={departmentQuestions}
+                          answers={viewing.DepartmentResponses?.[viewing.departmentSlug]}
+                          color={color}
+                        />
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </>
           )}
         </DialogContent>

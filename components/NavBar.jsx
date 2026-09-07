@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutGrid, ShieldCheck, LogOut, Menu, X, Home } from "lucide-react";
+import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import GDGLogo from "./GDGLogo";
 import PremiumButton from "./premium/Button";
@@ -14,8 +15,32 @@ const navItemClass = "inline-flex min-h-11 items-center gap-2 border-b-2 px-1 te
 export default function NavBar() {
   const { data: session, isPending } = authClient.useSession();
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const user = session?.user;
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+
+    setIsSigningOut(true);
+    try {
+      const result = await authClient.signOut();
+
+      if (result?.error) {
+        throw new Error(result.error.message || "Sign out failed");
+      }
+
+      setOpen(false);
+      toast.success("Signed out successfully");
+      router.replace("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast.error("Could not sign out. Please try again.");
+      setIsSigningOut(false);
+    }
+  };
 
   const links = [
     { href: "/", label: "Home", icon: Home },
@@ -61,7 +86,16 @@ export default function NavBar() {
           ) : user ? (
             <div className="flex items-center gap-3 border-l border-[#dadce0] pl-5">
               <span className="max-w-32 truncate text-sm text-[#5f6368]">{user.name || user.email}</span>
-              <Link href="/auth/signout"><PremiumButton size="sm" variant="outline"><LogOut size={15} aria-hidden="true" /> Sign out</PremiumButton></Link>
+              <PremiumButton
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                aria-busy={isSigningOut}
+              >
+                <LogOut size={15} aria-hidden="true" /> {isSigningOut ? "Signing out…" : "Sign out"}
+              </PremiumButton>
             </div>
           ) : (
             <Link href="/auth/signin"><PremiumButton size="sm">Sign in</PremiumButton></Link>
@@ -92,7 +126,16 @@ export default function NavBar() {
               {links.map((link) => <NavLink key={link.href} {...link} />)}
               <div className="mt-4 border-t border-[#dadce0] pt-4">
                 {user ? (
-                  <Link href="/auth/signout" onClick={() => setOpen(false)}><PremiumButton className="w-full" variant="outline"><LogOut size={16} aria-hidden="true" /> Sign out</PremiumButton></Link>
+                  <PremiumButton
+                    type="button"
+                    className="w-full"
+                    variant="outline"
+                    onClick={handleSignOut}
+                    disabled={isSigningOut}
+                    aria-busy={isSigningOut}
+                  >
+                    <LogOut size={16} aria-hidden="true" /> {isSigningOut ? "Signing out…" : "Sign out"}
+                  </PremiumButton>
                 ) : (
                   <Link href="/auth/signin" onClick={() => setOpen(false)}><PremiumButton className="w-full">Sign in</PremiumButton></Link>
                 )}

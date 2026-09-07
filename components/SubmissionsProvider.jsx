@@ -12,8 +12,10 @@ import { authClient } from "@/lib/auth-client";
 const SubmissionsContext = createContext({
   submittedSlugs: [],
   submittedDepartments: [],
+  recentSubmission: null,
   isLoadingSubmissions: false,
   markSubmitted: () => {},
+  clearRecentSubmission: () => {},
   refreshSubmissions: async () => {},
 });
 
@@ -23,6 +25,7 @@ export function SubmissionsProvider({ children }) {
   const userEmail = user?.email;
   const [submittedSlugs, setSubmittedSlugs] = useState([]);
   const [submittedDepartments, setSubmittedDepartments] = useState([]);
+  const [recentSubmission, setRecentSubmission] = useState(null);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
 
   const fetchSubmissions = useCallback(async (email) => {
@@ -57,6 +60,7 @@ export function SubmissionsProvider({ children }) {
     queueMicrotask(() => {
       setSubmittedSlugs([]);
       setSubmittedDepartments([]);
+      setRecentSubmission(null);
       setIsLoadingSubmissions(false);
     });
   }, [userEmail, fetchSubmissions]);
@@ -64,6 +68,11 @@ export function SubmissionsProvider({ children }) {
   const markSubmitted = useCallback((slugs = [], names = []) => {
     setSubmittedSlugs((prev) => [...new Set([...prev, ...slugs])]);
     setSubmittedDepartments((prev) => [...new Set([...prev, ...names])]);
+    setRecentSubmission({ slugs, names, createdAt: Date.now() });
+  }, []);
+
+  const clearRecentSubmission = useCallback(() => {
+    setRecentSubmission(null);
   }, []);
 
   const refreshSubmissions = useCallback(async () => {
@@ -75,8 +84,10 @@ export function SubmissionsProvider({ children }) {
       value={{
         submittedSlugs,
         submittedDepartments,
+        recentSubmission,
         isLoadingSubmissions,
         markSubmitted,
+        clearRecentSubmission,
         refreshSubmissions,
       }}
     >
