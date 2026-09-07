@@ -20,6 +20,7 @@ const SubmissionsContext = createContext({
 export function SubmissionsProvider({ children }) {
   const { data: session } = authClient.useSession();
   const user = session?.user;
+  const userEmail = user?.email;
   const [submittedSlugs, setSubmittedSlugs] = useState([]);
   const [submittedDepartments, setSubmittedDepartments] = useState([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
@@ -48,12 +49,17 @@ export function SubmissionsProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (user?.email) fetchSubmissions(user.email);
-    else {
+    if (userEmail) {
+      void Promise.resolve().then(() => fetchSubmissions(userEmail));
+      return;
+    }
+
+    queueMicrotask(() => {
       setSubmittedSlugs([]);
       setSubmittedDepartments([]);
-    }
-  }, [user?.email, fetchSubmissions]);
+      setIsLoadingSubmissions(false);
+    });
+  }, [userEmail, fetchSubmissions]);
 
   const markSubmitted = useCallback((slugs = [], names = []) => {
     setSubmittedSlugs((prev) => [...new Set([...prev, ...slugs])]);
@@ -61,8 +67,8 @@ export function SubmissionsProvider({ children }) {
   }, []);
 
   const refreshSubmissions = useCallback(async () => {
-    if (user?.email) await fetchSubmissions(user.email);
-  }, [user?.email, fetchSubmissions]);
+    if (userEmail) await fetchSubmissions(userEmail);
+  }, [userEmail, fetchSubmissions]);
 
   return (
     <SubmissionsContext.Provider

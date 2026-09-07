@@ -121,6 +121,7 @@ function makeDb(store) {
 // Collection registry — tests reference these directly.
 export const stores = {
   formData: {},
+  applicationLocks: {},
 };
 
 const db = makeDb(stores.formData);
@@ -132,22 +133,32 @@ const dbRouter = {
     const base = makeDb(store).collection();
     return base;
   },
-  async runTransaction(fn) {
+  runTransaction(fn) {
     const store = stores.formData;
-    const tx = {
-      async get(queryRef) {
-        return await queryRef.get();
-      },
-      set(docRef, payload) {
-        return docRef.set(payload);
-      },
-      update(docRef, payload) {
-        return docRef.update(payload);
-      },
+    const execute = async () => {
+      const tx = {
+        async get(queryRef) {
+          return await queryRef.get();
+        },
+        set(docRef, payload) {
+          return docRef.set(payload);
+        },
+        update(docRef, payload) {
+          return docRef.update(payload);
+        },
+      };
+      return await fn(tx);
     };
-    return await fn(tx);
+
+    // Firestore retries/serializes conflicting transactions. Keep the test
+    // double honest so concurrent-submission tests exercise that guarantee.
+    const result = transactionQueue.then(execute);
+    transactionQueue = result.catch(() => undefined);
+    return result;
   },
 };
+
+let transactionQueue = Promise.resolve();
 
 export const connect = async () => dbRouter;
 
@@ -165,5 +176,7 @@ export const serializeFirestoreData = (value) => {
 };
 
 export const resetStore = () => {
-  for (const k of Object.keys(stores.formData)) delete stores.formData[k];
+  for (const store of Object.values(stores)) {
+    for (const k of Object.keys(store)) delete store[k];
+  }
 };

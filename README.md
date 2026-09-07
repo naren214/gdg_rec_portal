@@ -1,8 +1,8 @@
 # GDG Recruitment Portal
 
-A Next.js 14 recruitment portal for a **Google Developer Groups** campus club.
+A Next.js 16 recruitment portal for a **Google Developer Groups** campus club.
 Applicants sign in with their official student email, pick up to two of twelve
-departments, and answer a shared questionnaire. Admins review applications,
+departments, and answer common plus department-specific questions. Admins review applications,
 shortlist candidates, export CSV and email shortlisted applicants.
 
 Data is stored in **Cloud Firestore** and accessed **exclusively server-side**
@@ -57,16 +57,21 @@ Set these in Vercel → Project → Settings → Environment Variables.
 `ENABLE_GOOGLE_AUTH`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
 `EMAIL_USERNAME`, `EMAIL_PASSWORD` (Nodemailer/Gmail app password).
 
-Optional client-exposed mirrors used for the countdown and client-side email
-hint: `NEXT_PUBLIC_VIT_EMAIL_DOMAINS`, `NEXT_PUBLIC_RECRUITMENT_START_AT`,
-`NEXT_PUBLIC_RECRUITMENT_END_AT`.
+Optional client-exposed mirrors used for client-side hints:
+`NEXT_PUBLIC_VIT_EMAIL_DOMAINS`, `NEXT_PUBLIC_RECRUITMENT_START_AT`. The
+landing-page countdown currently shows a rolling 15-day display timer; the
+server-side `RECRUITMENT_START_AT` and `RECRUITMENT_END_AT` values still
+control application availability.
+
+For production Google sign-in, set `ENABLE_GOOGLE_AUTH=true` and register the
+Better Auth callback URL for the final Vercel domain with Google OAuth.
 
 ---
 
 ## Firebase setup
 
-1. Create a Firebase project and enable **Authentication → Email/Password** and
-   **Cloud Firestore**.
+1. Create a Firebase project and enable **Cloud Firestore**. Authentication is
+   handled by Better Auth using Firestore; Firebase Authentication is not used.
 2. Create a **service account** (Project Settings → Service Accounts) and add
    its project id / client email / private key to Vercel.
 3. Deploy the locked-down rules (client access blocked, all access is via Admin
@@ -81,7 +86,7 @@ firebase deploy --only firestore:rules
 ## Vercel setup
 
 Connect the GitHub repo. Framework **Next.js**, install `npm ci`, build
-`npm run build`, output automatic, Node.js **20+**. Add the environment
+`npm run build`, output automatic, Node.js **20.9+**. Add the environment
 variables above, setting `BETTER_AUTH_URL` to the final production URL.
 
 ---
@@ -100,16 +105,31 @@ Each application document:
   "YearOfStudy": "2nd year",
   "departmentSlug": "web-dev",            // stable key, used for lookups
   "Department": "Web Development",        // canonical display name
-  "Responses": {                          // shared questionnaire, by stable id
+  "Responses": {                          // common questions, by stable id
     "whyJoin": "...",
-    "strengths": "...",
-    "pastExperience": "...",
-    "expectations": "..."
+    "githubUrl": "",
+    "linkedinUrl": ""
+  },
+  "DepartmentResponses": {                // keyed by stable department slug
+    "web-dev": {
+      "interest": "...",
+      "experience": "...",
+      "toolsSkills": "...",
+      "problemSolving": "...",
+      "collaboration": "...",
+      "contribution": "..."
+    }
   },
   "shortlisted": false,
   "createdAt": "<timestamp>"
 }
 ```
+
+Each applicant also has one private `applicationLocks/{sha256(email)}` document
+containing the application count and department slugs. It is read and updated
+inside the submission transaction so concurrent first submissions cannot bypass
+the duplicate or maximum-two checks. The email itself is never used as the
+lock document ID.
 
 ---
 
@@ -142,11 +162,14 @@ the server.
 
 ### ⚙️ Server correctness & cost
 - **Race condition** in "already applied / max 2" checks (read-then-write) is
-  fixed with a Firestore **transaction**, preventing duplicate/over-limit docs
-  from concurrent requests.
+  fixed with a Firestore **transaction** plus a per-applicant lock document,
+  preventing duplicate/over-limit docs from concurrent requests, including a
+  user's first simultaneous submissions.
 - Hard-coded deadline replaced with `RECRUITMENT_START_AT/END_AT` env vars.
 - Server-side validation (reg-no, phone, department, required answers, length
-  caps).
+  caps, and GitHub/LinkedIn URL protocols).
+- Department-specific answers are validated and stored under a stable slug so
+  selected departments never overwrite one another.
 - Departments identified by stable **slugs** instead of fragile UUIDs (many of
   which pointed at the wrong department).
 - Single-field queries avoid extra composite indexes (less cost/ops burden).
@@ -177,5 +200,13 @@ the server.
 
 ### 🧪 Tests
 `npm test` runs the **real route handlers** against an in-memory Firestore
-(19 checks): auth, validation, response storage, duplicate blocking, the
-max-two rule, per-user isolation, shortlisting, and admin email authorization.
+(30 checks): auth, VIT-domain enforcement, validation, response storage,
+concurrent duplicate/limit protection, per-user isolation, shortlisting, and
+admin email authorization.
+
+The test double serializes transactions so the concurrent-submission test
+models Firestore conflict handling instead of allowing a false positive.
+
+Before deployment, run `npm audit --omit=dev` and review any remaining
+transitive Firebase Admin advisories; Firebase CLI advisories are development
+tooling and do not ship in the Vercel runtime bundle.

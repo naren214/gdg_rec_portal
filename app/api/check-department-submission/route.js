@@ -18,19 +18,19 @@ export async function GET(request) {
       );
     }
 
-    const userEmail = session.user.email;
+    const userEmail = String(session.user.email || "").trim().toLowerCase();
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
     const slug = searchParams.get("slug");
 
-    if (!email || !slug) {
+    if (!email || !slug || slug.length > 80) {
       return NextResponse.json(
         { error: "Missing email or department slug" },
         { status: 400 }
       );
     }
 
-    if (email.toLowerCase() !== userEmail.toLowerCase()) {
+    if (email.trim().toLowerCase() !== userEmail) {
       return NextResponse.json(
         { error: "You can only check your own submissions" },
         { status: 403 }
@@ -40,7 +40,7 @@ export async function GET(request) {
     const db = await connect();
     const snapshot = await db
       .collection("formData")
-      .where("Email", "==", email)
+      .where("Email", "==", userEmail)
       .select("departmentSlug")
       .get();
 

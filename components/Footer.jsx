@@ -2,18 +2,16 @@
 
 import React from "react";
 import Link from "next/link";
-import { LayoutGrid, Home, LogIn } from "lucide-react";
-import { motion } from "framer-motion";
+import { ArrowUpRight } from "lucide-react";
 import GDGLogo from "./GDGLogo";
 import { LINKS } from "@/constants";
 
 export default function Footer() {
   const nav = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/departments", label: "Departments", icon: LayoutGrid },
-    { href: "/auth/signin", label: "Sign in", icon: LogIn },
+    { href: "/", label: "Home" },
+    { href: "/departments", label: "Departments" },
+    { href: "/auth/signin", label: "Sign in" },
   ];
-
   const socials = [
     { label: "Instagram", href: LINKS.instagram },
     { label: "Discord", href: LINKS.discord },
@@ -22,69 +20,26 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="px-4 sm:px-6 pb-8 pt-10">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="glass mx-auto max-w-6xl rounded-[28px] px-6 sm:px-10 py-10 grid grid-cols-1 sm:grid-cols-3 gap-8"
-      >
+    <footer className="border-t border-[#dadce0] bg-white">
+      <div className="container-x grid gap-10 py-12 sm:grid-cols-[1.25fr_0.65fr_0.9fr] sm:gap-8">
         <div>
-          <div className="flex items-center gap-3">
-            <GDGLogo size={32} />
-            <div>
-              <p className="font-bold leading-tight">Google Developer Groups</p>
-              <p className="text-sm text-[#8b92a5]">Recruitment Portal</p>
-            </div>
-          </div>
-          <p className="text-sm text-[#4a5163] mt-4 leading-relaxed max-w-xs">
-            A community of students building, learning and growing together with
-            Google&apos;s developer technologies.
-          </p>
+          <div className="flex items-center gap-3"><GDGLogo size={34} /><span className="text-lg font-bold tracking-[-0.03em]">GDG on Campus<br /><span className="font-normal text-[#5f6368]">VIT Chennai</span></span></div>
+          <p className="mt-5 max-w-sm text-sm leading-relaxed text-[#5f6368]">A student community for people who want to learn openly, build with care, and share what they discover.</p>
         </div>
-
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-[#8b92a5] mb-4">
-            Explore
-          </p>
-          <nav className="flex flex-col gap-3 text-sm font-medium text-[#4a5163]">
-            {nav.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="flex items-center gap-2 hover:text-[#4285F4] transition-colors w-fit"
-              >
-                <l.icon size={15} /> {l.label}
-              </Link>
-            ))}
+          <p className="editorial-label">Explore</p>
+          <nav className="mt-4 flex flex-col items-start gap-3">
+            {nav.map((item) => <Link key={item.href} href={item.href} className="text-sm font-semibold text-[#202124] underline decoration-[#dadce0] underline-offset-4 hover:decoration-[#202124]">{item.label}</Link>)}
           </nav>
         </div>
-
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-[#8b92a5] mb-4">
-            Connect
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {socials.map((s) => (
-              <a
-                key={s.label}
-                href={s.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="neu-sm neu-press px-4 py-2 rounded-full text-sm font-semibold text-[#4a5163]"
-              >
-                {s.label}
-              </a>
-            ))}
+          <p className="editorial-label">Stay connected</p>
+          <div className="mt-4 flex flex-col items-start gap-3">
+            {socials.map((item) => <a key={item.label} href={item.href} target={item.href.startsWith("mailto:") ? undefined : "_blank"} rel={item.href.startsWith("mailto:") ? undefined : "noopener noreferrer"} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#202124] underline decoration-[#dadce0] underline-offset-4 hover:decoration-[#202124]">{item.label} <ArrowUpRight size={14} aria-hidden="true" /></a>)}
           </div>
         </div>
-      </motion.div>
-
-      <p className="text-center text-xs text-[#a4aabf] mt-6">
-        © {new Date().getFullYear()} Google Developer Groups · Built with the
-        Google colors
-      </p>
+      </div>
+      <div className="border-t border-[#dadce0]"><div className="container-x flex flex-col gap-2 py-5 text-xs text-[#5f6368] sm:flex-row sm:items-center sm:justify-between"><span>© {new Date().getFullYear()} GDG on Campus · VIT Chennai</span><span>Built for the people who build.</span></div></div>
     </footer>
   );
 }

@@ -9,9 +9,29 @@ export async function PATCH(req, { params }) {
   if (error) return error;
 
   try {
-    const { id } = params;
-    const body = await req.json().catch(() => ({}));
-    const shortlisted = Boolean(body?.shortlisted);
+    const resolvedParams = await params;
+    const id = typeof resolvedParams?.id === "string" ? resolvedParams.id.trim() : "";
+    if (!id || id.length > 200) {
+      return NextResponse.json(
+        { success: false, message: "Invalid applicant id" },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid request body" },
+        { status: 400 }
+      );
+    }
+    if (typeof body.shortlisted !== "boolean") {
+      return NextResponse.json(
+        { success: false, message: "shortlisted must be a boolean" },
+        { status: 400 }
+      );
+    }
+    const shortlisted = body.shortlisted;
 
     const db = await connect();
     const docRef = db.collection("formData").doc(id);
@@ -36,10 +56,10 @@ export async function PATCH(req, { params }) {
       },
     });
   } catch (err) {
-    console.error("Error updating applicant:", err.message);
+    console.error("Error updating applicant:", err);
     return NextResponse.json(
-      { success: false, message: err.message },
-      { status: 400 }
+      { success: false, message: "Could not update applicant" },
+      { status: 500 }
     );
   }
 }

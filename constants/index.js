@@ -10,12 +10,14 @@ export const GOOGLE_COLORS = {
   green: "#34A853",
 };
 
-// Social / contact links (replace the "#" values with real handles)
+export const MAX_APPLICATIONS_PER_USER = 2;
+
+// Official GDG VIT Chennai social and contact links.
 export const LINKS = {
-  instagram: "#",
-  discord: "#",
-  gmail: "#",
-  linkedin: "#",
+  instagram: "https://www.instagram.com/gdg.vitc/",
+  discord: "https://discord.com/invite/67G6bg4Xeq",
+  gmail: "mailto:gdgvitc@gmail.com",
+  linkedin: "https://www.linkedin.com/company/gdg-vitc/",
   x: "#",
 };
 
@@ -145,45 +147,94 @@ export const getDepartmentBySlug = (slug) =>
   DEPARTMENTS.find((dept) => dept.slug === slug) || null;
 
 // ============================================================
-// Common questionnaire — NO department-specific questions.
-// Every applicant answers the SAME questions regardless of dept.
+// Common questionnaire shared by every department.
 // `id` is a stable machine key; `label` is the human prompt.
 // ============================================================
 export const COMMON_QUESTIONS = [
   {
     id: "whyJoin",
-    label: "Why do you want to join Google Developer Groups?",
+    label: "What makes you want to join GDG on Campus?",
     type: "long-text",
     placeholder:
-      "Tell us what excites you about GDG and what you hope to gain (2-3 sentences).",
+      "Your perspective matters. A few thoughtful sentences are enough.",
     required: true,
   },
   {
-    id: "strengths",
-    label:
-      "What are your key strengths or skills relevant to the department(s) you're applying for?",
-    type: "long-text",
-    placeholder:
-      "Mention technical tools, soft skills, past projects or experience (2-3 sentences).",
-    required: true,
-  },
-  {
-    id: "pastExperience",
-    label:
-      "Describe a project, event or experience you are proud of and your role in it.",
-    type: "long-text",
-    placeholder: "It can be academic, personal or extracurricular.",
+    id: "githubUrl",
+    label: "Share your GitHub profile or project link, if you have one.",
+    type: "url",
+    placeholder: "https://github.com/yourname",
     required: false,
   },
   {
-    id: "expectations",
-    label:
-      "If selected, how do you plan to contribute to the club community?",
-    type: "long-text",
-    placeholder: "Share an idea or two about how you'd add value.",
+    id: "linkedinUrl",
+    label: "Share your LinkedIn profile link, if you have one.",
+    type: "url",
+    placeholder: "https://linkedin.com/in/yourname",
     required: false,
   },
 ];
+
+// Department questionnaire. These questions are shared in structure but the
+// department name is injected into the first two prompts. The IDs are stable
+// so response storage never depends on editable question text.
+export const DEPARTMENT_QUESTION_TEMPLATES = [
+  {
+    id: "interest",
+    label: (departmentName) =>
+      `What interests you most about ${departmentName}, and what would you like to learn?`,
+    type: "long-text",
+    placeholder: "A few thoughtful sentences are enough. Beginners are welcome.",
+    required: true,
+  },
+  {
+    id: "experience",
+    label: (departmentName) =>
+      `Tell us about a project, challenge, or idea you have explored in ${departmentName}. What did you learn?`,
+    type: "long-text",
+    placeholder: "A few thoughtful sentences are enough. Beginners are welcome.",
+    required: true,
+  },
+  {
+    id: "toolsSkills",
+    label:
+      "Which tools or skills have you tried? Tell us where you feel confident and where you are still learning.",
+    type: "long-text",
+    placeholder: "Be honest about what you know and what you are learning.",
+    required: true,
+  },
+  {
+    id: "problemSolving",
+    label: "How would you approach a new problem when you do not know the answer yet?",
+    type: "long-text",
+    placeholder: "Walk us through your thinking process.",
+    required: true,
+  },
+  {
+    id: "collaboration",
+    label: "Describe a time you worked with others. What was your contribution?",
+    type: "long-text",
+    placeholder: "It can be academic, personal or extracurricular.",
+    required: true,
+  },
+  {
+    id: "contribution",
+    label: (departmentName) =>
+      `What would you like to build or contribute to ${departmentName}?`,
+    type: "long-text",
+    placeholder: "Share an idea or two about how you would add value.",
+    required: true,
+  },
+];
+
+export const getDepartmentQuestions = (departmentName) =>
+  DEPARTMENT_QUESTION_TEMPLATES.map((question) => ({
+    ...question,
+    label:
+      typeof question.label === "function"
+        ? question.label(departmentName)
+        : question.label,
+  }));
 
 // Column headers used for the admin CSV export.
 export const CSV_Header = [
@@ -196,6 +247,7 @@ export const CSV_Header = [
   { label: "Department", key: "Department" },
   { label: "Shortlisted", key: "shortlisted" },
   { label: "Responses", key: "Responses" },
+  { label: "Department Responses", key: "DepartmentResponses" },
 ];
 
 // Mailing template (placeholders #name and #dept are replaced per recipient).

@@ -3,32 +3,15 @@
 import React from "react";
 import Reveal from "./Reveal";
 
-// Consistent section header: small gradient kicker, big title, subtitle.
-export default function SectionHeading({
-  kicker,
-  title,
-  highlight,
-  subtitle,
-  align = "center",
-}) {
-  const alignCls = align === "center" ? "items-center text-center" : "items-start text-left";
+export default function SectionHeading({ title, highlight, subtitle, align = "left" }) {
+  const centered = align === "center";
   return (
-    <Reveal className={`flex flex-col gap-3 ${alignCls} mb-12`}>
-      {kicker && (
-        <span className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#4285F4]">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#34A853]" />
-          {kicker}
-        </span>
-      )}
-      <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
-        {title}{" "}
-        {highlight && <span className="text-gradient">{highlight}</span>}
+    <Reveal className={`mb-10 flex max-w-3xl flex-col ${centered ? "items-center text-center" : "items-start text-left"}`} y={18}>
+      <div className="signal-rule" aria-hidden="true"><span /><span /><span /><span /></div>
+      <h2 className="mt-6 text-[clamp(2.35rem,5vw,4.8rem)] font-bold leading-[0.96] tracking-[-0.055em] text-[#202124]">
+        {title} {highlight && <span className="text-[#1a73e8]">{highlight}</span>}
       </h2>
-      {subtitle && (
-        <p className="text-[#4a5163] text-base sm:text-lg max-w-2xl leading-relaxed">
-          {subtitle}
-        </p>
-      )}
+      {subtitle && <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#5f6368] sm:text-lg">{subtitle}</p>}
     </Reveal>
   );
 }

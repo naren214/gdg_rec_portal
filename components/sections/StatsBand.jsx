@@ -1,42 +1,33 @@
 "use client";
 
 import React from "react";
-import { Users, Layers, FolderGit2, Award } from "lucide-react";
-import CountUp from "../premium/CountUp";
 import { motion } from "framer-motion";
 
-const STATS = [
-  { icon: Layers, value: 12, suffix: "", label: "Departments", color: "#4285F4" },
-  { icon: Users, value: 500, suffix: "+", label: "Members", color: "#EA4335" },
-  { icon: FolderGit2, value: 60, suffix: "+", label: "Projects built", color: "#FBBC04" },
-  { icon: Award, value: 25, suffix: "+", label: "Events hosted", color: "#34A853" },
+const FACTS = [
+  { value: "12", label: "departments to explore", color: "#1a73e8" },
+  { value: "02", label: "teams per application", color: "#d93025" },
+  { value: "VIT", label: "email required to apply", color: "#f9ab00" },
+  { value: "01", label: "shared application flow", color: "#188038" },
 ];
 
 export default function StatsBand() {
   return (
-    <section className="container-x py-14">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-80px" }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-strong rounded-[28px] px-6 sm:px-10 py-10 grid grid-cols-2 lg:grid-cols-4 gap-8"
-      >
-        {STATS.map((s) => (
-          <div key={s.label} className="flex flex-col items-center text-center gap-2">
-            <span
-              className="flex items-center justify-center w-12 h-12 rounded-2xl text-white mb-1"
-              style={{ background: s.color, boxShadow: `0 12px 24px ${s.color}44` }}
-            >
-              <s.icon size={22} />
-            </span>
-            <span className="text-4xl font-extrabold tracking-tight">
-              <CountUp to={s.value} suffix={s.suffix} />
-            </span>
-            <span className="text-sm text-[#4a5163] font-medium">{s.label}</span>
-          </div>
+    <section className="border-b border-[#dadce0] bg-white">
+      <div className="container-x grid sm:grid-cols-2 lg:grid-cols-4">
+        {FACTS.map((fact, index) => (
+          <motion.div
+            key={fact.label}
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ duration: 0.45, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] }}
+            className="min-h-36 border-b border-[#dadce0] py-7 sm:border-r sm:px-7 lg:border-b-0 lg:first:pl-0 lg:last:border-r-0"
+          >
+            <span className="block text-[clamp(2.25rem,4vw,3.3rem)] font-bold leading-none tracking-[-0.065em]" style={{ color: fact.color }}>{fact.value}</span>
+            <span className="mt-3 block max-w-[15ch] text-sm leading-snug text-[#5f6368]">{fact.label}</span>
+          </motion.div>
         ))}
-      </motion.div>
+      </div>
     </section>
   );
 }

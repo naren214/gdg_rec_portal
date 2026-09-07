@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { ROLLING_COUNTDOWN_TARGET } from "../recruitmentConfig";
 
 const COLORS = ["#4285F4", "#EA4335", "#FBBC04", "#34A853"];
+const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
 
 function getRemaining(target) {
-  const diff = new Date(target).getTime() - Date.now();
+  const diff = target - Date.now();
   if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, done: true };
   return {
     days: Math.floor(diff / 86400000),
@@ -16,14 +18,42 @@ function getRemaining(target) {
   };
 }
 
+function resolveTarget(targetDate) {
+  if (targetDate === ROLLING_COUNTDOWN_TARGET) {
+    return Date.now() + FIFTEEN_DAYS_MS;
+  }
+
+  return new Date(targetDate || Date.now()).getTime();
+}
+
 const CountdownTimer = ({ targetDate, className = "" }) => {
-  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, done: false });
+  const initialTarget = resolveTarget(targetDate);
+  const targetRef = useRef(initialTarget);
+  const isRollingTarget = targetDate === ROLLING_COUNTDOWN_TARGET;
+  const [time, setTime] = useState(() =>
+    isRollingTarget
+      ? { days: 15, hours: 0, minutes: 0, seconds: 0, done: false }
+      : getRemaining(initialTarget)
+  );
 
   useEffect(() => {
-    if (!targetDate) return;
-    setTime(getRemaining(targetDate));
-    const id = setInterval(() => setTime(getRemaining(targetDate)), 1000);
-    return () => clearInterval(id);
+    targetRef.current = resolveTarget(targetDate);
+
+    // Sync immediately after hydration so the initial 15-day placeholder is
+    // replaced by the exact remaining time without a hydration mismatch.
+    const syncId = setTimeout(
+      () => setTime(getRemaining(targetRef.current)),
+      0
+    );
+    const intervalId = setInterval(
+      () => setTime(getRemaining(targetRef.current)),
+      1000
+    );
+
+    return () => {
+      clearTimeout(syncId);
+      clearInterval(intervalId);
+    };
   }, [targetDate]);
 
   const units = [
@@ -34,24 +64,24 @@ const CountdownTimer = ({ targetDate, className = "" }) => {
   ];
 
   return (
-    <div className={`flex items-center justify-center gap-2 sm:gap-3 ${className}`}>
+    <div className={`neu-countdown flex items-stretch justify-center ${className}`}>
       {units.map((unit, i) => (
-        <React.Fragment key={unit.label}>
-          <div className="neu-sm flex flex-col items-center justify-center w-16 h-18 sm:w-20 sm:h-20 py-2">
+        <div
+          key={unit.label}
+          className={`flex w-[4.35rem] flex-col items-center justify-center py-3 sm:w-[4.8rem] ${
+            i < units.length - 1 ? "border-r border-[#dadce0]" : ""
+          }`}
+        >
             <span
-              className="text-2xl sm:text-3xl font-bold tabular-nums leading-none"
+              className="text-2xl font-bold tabular-nums leading-none sm:text-3xl"
               style={{ color: COLORS[i] }}
             >
               {String(unit.value).padStart(2, "0")}
             </span>
-            <span className="text-[10px] uppercase tracking-widest text-[#8a90a2] mt-1">
+            <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#5f6368]">
               {unit.label}
             </span>
-          </div>
-          {i < units.length - 1 && (
-            <span className="text-xl font-bold text-[#c3c9d8] -mt-4">:</span>
-          )}
-        </React.Fragment>
+        </div>
       ))}
     </div>
   );

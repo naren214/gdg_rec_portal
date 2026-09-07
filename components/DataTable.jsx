@@ -18,6 +18,7 @@ import {
   CSV_Header,
   COMMON_QUESTIONS,
   DEPARTMENTS_BY_SLUG,
+  getDepartmentQuestions,
 } from "@/constants";
 import {
   Dialog,
@@ -40,6 +41,17 @@ function responsesToText(row) {
     const ans = (r[q.id] ?? "").toString().replace(/\s+/g, " ").trim();
     return `${q.label} => ${ans}`;
   }).join("  ||  ");
+}
+
+function departmentResponsesToText(row) {
+  const department = getDepartmentQuestions(deptName(row)).map((q) => {
+    const ans = (row.DepartmentResponses?.[row.departmentSlug]?.[q.id] ?? "")
+      .toString()
+      .replace(/\s+/g, " ")
+      .trim();
+    return `${q.label} => ${ans}`;
+  });
+  return department.join("  ||  ");
 }
 
 export default function DataTable({ data = [], onChanged }) {
@@ -116,6 +128,7 @@ export default function DataTable({ data = [], onChanged }) {
     ...item,
     Department: deptName(item),
     Responses: responsesToText(item),
+    DepartmentResponses: departmentResponsesToText(item),
   }));
 
   return (
@@ -134,13 +147,11 @@ export default function DataTable({ data = [], onChanged }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.06, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             whileHover={{ y: -4 }}
-            className="spotlight-card glass rounded-2xl p-4 relative overflow-hidden"
-            style={{ "--spot-color": `${s.color}22` }}
+            className="neu-surface p-4"
           >
-            <span className="spotlight" />
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center text-white mb-2"
-              style={{ background: s.color, boxShadow: `0 8px 18px ${s.color}55` }}
+              style={{ background: s.color }}
             >
               <s.icon size={17} />
             </div>
@@ -151,7 +162,7 @@ export default function DataTable({ data = [], onChanged }) {
       </div>
 
       {/* Toolbar */}
-      <div className="glass rounded-2xl p-3 flex flex-wrap items-center gap-3">
+      <div className="neu-surface flex flex-wrap items-center gap-3 p-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8b92a5]" />
           <input
@@ -190,7 +201,7 @@ export default function DataTable({ data = [], onChanged }) {
           headers={CSV_Header}
           filename="gdg-applicants.csv"
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
-          style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
+          style={{ background: "#202124" }}
         >
           <Download size={16} /> CSV
         </CSVLink>
@@ -199,14 +210,14 @@ export default function DataTable({ data = [], onChanged }) {
           onClick={() => setMailOpen(true)}
           disabled={!selectedApplicants.length}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
-          style={{ background: "linear-gradient(135deg,#EA4335,#FBBC04)" }}
+          style={{ background: "#1a73e8" }}
         >
           <Mail size={16} /> Email {selectedApplicants.length ? `(${selectedApplicants.length})` : ""}
         </button>
       </div>
 
       {/* Table */}
-      <div className="glass rounded-2xl overflow-hidden">
+      <div className="data-surface rounded-[1.125rem]">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -247,7 +258,7 @@ export default function DataTable({ data = [], onChanged }) {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: Math.min(idx * 0.03, 0.4) }}
-                    className="border-b border-black/5 hover:bg-white/50 transition-colors"
+                    className="border-b border-[#dadce0] hover:bg-[#f8f9fa] transition-colors"
                   >
                     <td className="p-3">
                       <input
@@ -300,7 +311,7 @@ export default function DataTable({ data = [], onChanged }) {
                     <td className="p-3 text-right">
                       <button
                         onClick={() => setViewing(row)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold neu-sm neu-press"
+                        className="neu-button inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"
                       >
                         <Eye size={14} /> Responses
                       </button>
@@ -346,6 +357,21 @@ export default function DataTable({ data = [], onChanged }) {
                       {viewing.Responses?.[q.id] || (
                         <span className="text-[#a4aabf] italic">No answer</span>
                       )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-4 mt-6 border-t border-black/5 pt-5">
+                <h3 className="font-bold">Department responses</h3>
+                {getDepartmentQuestions(deptName(viewing)).map((q, i) => (
+                  <div key={q.id}>
+                    <p className="text-sm font-semibold text-[#1a1c22]">
+                      {i + 1}. {q.label}
+                    </p>
+                    <p className="text-sm text-[#54596b] mt-1 whitespace-pre-wrap rounded-xl bg-black/[0.03] p-3">
+                      {viewing.DepartmentResponses?.[viewing.departmentSlug]?.[
+                        q.id
+                      ] || <span className="text-[#a4aabf] italic">No answer</span>}
                     </p>
                   </div>
                 ))}

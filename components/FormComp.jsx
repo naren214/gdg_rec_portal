@@ -10,17 +10,22 @@ import {
   Phone,
   GraduationCap,
   Users as UsersIcon,
+  Link as LinkIcon,
   Send,
   Loader2,
   CheckCircle2,
   ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { COMMON_QUESTIONS } from "@/constants";
-import { MAX_APPLICATIONS_PER_USER as MAX_APPS } from "@/lib/config";
+import {
+  COMMON_QUESTIONS,
+  getDepartmentQuestions,
+  MAX_APPLICATIONS_PER_USER as MAX_APPS,
+} from "@/constants";
 import { useSubmissions } from "@/components/SubmissionsProvider";
 import PremiumButton from "@/components/premium/Button";
 import { toast } from "sonner";
+import { authClient } from "@/lib/auth-client";
 
 const GOOGLE = ["#4285F4", "#EA4335", "#FBBC04", "#34A853"];
 
@@ -41,10 +46,18 @@ const inputClass = "field-input";
 
 const FormComp = ({ departments = [] }) => {
   const router = useRouter();
+  const { data: session } = authClient.useSession();
   const { submittedSlugs, markSubmitted, refreshSubmissions } = useSubmissions();
 
   const deptSlugs = departments.map((d) => d.slug);
-  const deptNames = departments.map((d) => d.name);
+  const departmentQuestionSets = useMemo(
+    () =>
+      departments.map((department) => ({
+        ...department,
+        questions: getDepartmentQuestions(department.name),
+      })),
+    [departments]
+  );
 
   // Which of these departments still need an application.
   const pending = useMemo(
@@ -71,6 +84,12 @@ const FormComp = ({ departments = [] }) => {
       Gender: "",
       YearOfStudy: "",
       ...Object.fromEntries(COMMON_QUESTIONS.map((q) => [q.id, ""])),
+      DepartmentResponses: Object.fromEntries(
+        departmentQuestionSets.map((department) => [
+          department.slug,
+          Object.fromEntries(department.questions.map((q) => [q.id, ""])),
+        ])
+      ),
     },
   });
 
@@ -86,6 +105,8 @@ const FormComp = ({ departments = [] }) => {
   }, [draftKey]);
 
   // Autosave draft (debounced via watch).
+  // React Hook Form's watch() is intentionally used as the autosave source.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const values = watch();
   useEffect(() => {
     const t = setTimeout(() => {
@@ -117,6 +138,9 @@ const FormComp = ({ departments = [] }) => {
       Responses: Object.fromEntries(
         COMMON_QUESTIONS.map((q) => [q.id, formValues[q.id] || ""])
       ),
+      DepartmentResponses: {
+        [dept.slug]: formValues.DepartmentResponses?.[dept.slug] || {},
+      },
     };
 
     // Submit sequentially so each department application is independent and
@@ -176,7 +200,7 @@ const FormComp = ({ departments = [] }) => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: "spring", stiffness: 220, damping: 20 }}
-          className="glass-strong rounded-3xl p-10 text-center max-w-md"
+          className="neu-surface p-10 text-center max-w-md"
         >
           <motion.div
             initial={{ scale: 0 }}
@@ -196,18 +220,17 @@ const FormComp = ({ departments = [] }) => {
   }
 
   return (
-    <div className="flex-1 px-4 sm:px-6 py-10">
+    <div className="flex-1 px-4 py-12 sm:px-6 sm:py-16">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="text-center rise-in mb-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#4285F4]">
-            Step 02 · Apply
-          </p>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-2">
-            Your <span className="text-gradient">application</span>
+        <div className="mb-10 rise-in">
+          <div className="signal-rule" aria-hidden="true"><span /><span /><span /><span /></div>
+          <h1 className="mt-6 text-[clamp(3rem,6vw,4.8rem)] font-bold leading-[0.95] tracking-[-0.06em]">
+            Your application.
           </h1>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-[#5f6368]">Write clearly, answer honestly, and take your time. Your draft is saved on this device.</p>
 
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          <div className="mt-6 flex flex-wrap items-center gap-2">
             {departments.map((d, i) => {
               const applied = submittedSlugs.includes(d.slug);
               return (
@@ -235,12 +258,12 @@ const FormComp = ({ departments = [] }) => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-          className="glass-strong rounded-3xl p-6 sm:p-9 space-y-8"
+          className="neu-surface space-y-8 p-6 sm:p-9"
         >
           {/* About you */}
           <section>
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <User size={18} className="text-[#EA4335]" /> About you
+            <h2 className="mb-5 flex items-center gap-2 text-xl font-bold tracking-[-0.03em]">
+              <User size={18} className="text-[#202124]" /> About you
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Field label="Full name" icon={User} error={errors.Name?.message}>
@@ -275,8 +298,8 @@ const FormComp = ({ departments = [] }) => {
                   className={inputClass}
                   type="email"
                   readOnly
-                  value=""
                   disabled
+                  value={session?.user?.email || ""}
                   placeholder="Use your signed-in VIT email"
                 />
               </Field>
@@ -323,41 +346,112 @@ const FormComp = ({ departments = [] }) => {
             </div>
           </section>
 
-          <div className="h-px bg-black/5" />
+          <div className="section-divider" />
 
           {/* Common questions */}
           <section>
-            <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
-              <GraduationCap size={18} className="text-[#FBBC04]" /> Your
-              responses
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold tracking-[-0.03em]">
+              <GraduationCap size={18} className="text-[#202124]" /> Common
+              question
             </h2>
-            <p className="text-sm text-[#8a90a2] mb-5">
-              The same questions apply to every department — answer once and we
-              attach them to each application.
-            </p>
             <div className="space-y-6">
               {COMMON_QUESTIONS.map((q, i) => (
                 <Field
                   key={q.id}
                   label={`${i + 1}. ${q.label}${q.required ? " *" : ""}`}
+                  icon={q.type === "url" ? LinkIcon : undefined}
                   error={errors[q.id]?.message}
                 >
-                  <textarea
-                    rows={4}
-                    className={`${inputClass} resize-y`}
-                    placeholder={q.placeholder}
-                    {...register(q.id, {
-                      required: q.required ? "This question is required" : false,
-                      validate: (v) =>
-                        !q.required ||
-                        (v && v.trim().length >= 10) ||
-                        "Please write at least 10 characters",
-                    })}
-                  />
+                  {q.type === "url" ? (
+                    <input
+                      type="url"
+                      className={inputClass}
+                      placeholder={q.placeholder}
+                      {...register(q.id, {
+                        validate: (v) =>
+                          !v || /^https?:\/\//i.test(v.trim()) ||
+                          "Please enter a valid http(s) URL",
+                      })}
+                    />
+                  ) : (
+                    <textarea
+                      rows={4}
+                      className={`${inputClass} resize-y`}
+                      placeholder={q.placeholder}
+                      {...register(q.id, {
+                        required: q.required ? "This question is required" : false,
+                        validate: (v) =>
+                          !q.required ||
+                          (v && v.trim().length >= 10) ||
+                          "Please write at least 10 characters",
+                      })}
+                    />
+                  )}
                 </Field>
               ))}
             </div>
           </section>
+
+          {departmentQuestionSets.map((department, departmentIndex) => (
+            <React.Fragment key={department.slug}>
+              <div className="section-divider" />
+              <section>
+                <div className="mb-5">
+                  <p className="text-sm font-semibold tabular-nums text-[#5f6368]">
+                    {String(departmentIndex + 2).padStart(2, "0")}
+                  </p>
+                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">
+                    {department.name}
+                  </h2>
+                  <p className="text-sm text-[#8a90a2] mt-1">
+                    Tell us how you think. Honest answers beat perfect ones.
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  {department.questions.map((q) => {
+                    const fieldName = `DepartmentResponses.${department.slug}.${q.id}`;
+                    const error =
+                      errors.DepartmentResponses?.[department.slug]?.[q.id]
+                        ?.message;
+
+                    return (
+                      <Field
+                        key={q.id}
+                        label={`${q.label}${q.required ? " *" : ""}`}
+                        icon={q.type === "url" ? LinkIcon : undefined}
+                        error={error}
+                      >
+                        {q.type === "url" ? (
+                          <input
+                            type="url"
+                            className={inputClass}
+                            placeholder={q.placeholder}
+                            {...register(fieldName)}
+                          />
+                        ) : (
+                          <textarea
+                            rows={4}
+                            className={`${inputClass} resize-y`}
+                            placeholder={q.placeholder}
+                            {...register(fieldName, {
+                              required: q.required
+                                ? "This question is required"
+                                : false,
+                              validate: (v) =>
+                                !q.required ||
+                                (v && v.trim().length >= 10) ||
+                                "Please write at least 10 characters",
+                            })}
+                          />
+                        )}
+                      </Field>
+                    );
+                  })}
+                </div>
+              </section>
+            </React.Fragment>
+          ))}
 
           {results?.failed?.length > 0 && (
             <div className="rounded-xl bg-[#EA4335]/10 border border-[#EA4335]/20 p-4 text-sm text-[#EA4335]">

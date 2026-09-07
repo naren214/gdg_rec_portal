@@ -2,6 +2,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { SubmissionsProvider } from "@/components/SubmissionsProvider";
 import Backdrop from "@/components/Backdrop";
+import CursorTrail from "@/components/CursorTrail";
 
 export const metadata = {
   title: "GDG Recruitment Portal | Google Developer Groups",
@@ -15,6 +16,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <Backdrop />
+        <CursorTrail />
         <SubmissionsProvider>{children}</SubmissionsProvider>
         <Toaster richColors position="top-center" />
       </body>

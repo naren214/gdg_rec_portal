@@ -16,7 +16,7 @@ export async function GET(req) {
       );
     }
 
-    const userEmail = session.user.email;
+    const userEmail = String(session.user.email || "").trim().toLowerCase();
     const { searchParams } = new URL(req.url);
     const email = searchParams.get("email");
 
@@ -27,7 +27,7 @@ export async function GET(req) {
       );
     }
 
-    if (email.toLowerCase() !== userEmail.toLowerCase()) {
+    if (email.trim().toLowerCase() !== userEmail) {
       return NextResponse.json(
         { message: "You can only view your own applications" },
         { status: 403 }
@@ -37,7 +37,7 @@ export async function GET(req) {
     const db = await connect();
     const snapshot = await db
       .collection("formData")
-      .where("Email", "==", email)
+      .where("Email", "==", userEmail)
       .get();
 
     const data = snapshot.docs.map((doc) => ({

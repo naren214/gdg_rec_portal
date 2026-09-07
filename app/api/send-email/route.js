@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { requireAdmin } from "@/lib/auth-guard";
-import { DEPARTMENTS_BY_SLUG } from "@/constants";
+import { DEPARTMENTS, DEPARTMENTS_BY_SLUG } from "@/constants";
+import { isAllowedStudentEmail } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ function getTransporter() {
     transporterPromise = Promise.resolve(
       nodemailer.createTransport({
         service: "gmail",
+        disableFileAccess: true,
+        disableUrlAccess: true,
         auth: {
           user: process.env.EMAIL_USERNAME,
           pass: process.env.EMAIL_PASSWORD,
@@ -42,15 +45,37 @@ export async function POST(req) {
 
   const { recipients, payloadData } = body || {};
 
-  if (!Array.isArray(recipients) || recipients.length === 0) {
+  if (!Array.isArray(recipients) || recipients.length === 0 || recipients.length > 100) {
     return NextResponse.json(
       { error: "No recipients provided" },
       { status: 400 }
     );
   }
-  if (!payloadData?.subject || !payloadData?.body) {
+  if (
+    typeof payloadData?.subject !== "string" ||
+    typeof payloadData?.body !== "string" ||
+    !payloadData.subject.trim() ||
+    !payloadData.body.trim() ||
+    payloadData.subject.length > 200 ||
+    payloadData.body.length > 50000 ||
+    /[\r\n]/.test(payloadData.subject)
+  ) {
     return NextResponse.json(
       { error: "Subject and body are required" },
+      { status: 400 }
+    );
+  }
+
+  const isValidRecipient = (recipient) =>
+    recipient &&
+    typeof recipient === "object" &&
+    typeof recipient.Email === "string" &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient.Email.trim()) &&
+    isAllowedStudentEmail(recipient.Email);
+
+  if (!recipients.every(isValidRecipient)) {
+    return NextResponse.json(
+      { error: "Recipients must be valid official student email addresses" },
       { status: 400 }
     );
   }
@@ -75,8 +100,8 @@ export async function POST(req) {
 
         await transporter.sendMail({
           from: process.env.EMAIL_USERNAME,
-          to: recipient.Email,
-          subject: payloadData.subject,
+          to: recipient.Email.trim().toLowerCase(),
+          subject: payloadData.subject.trim(),
           html,
         });
       })

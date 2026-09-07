@@ -73,14 +73,14 @@ export default function MailComposer({ open, onOpenChange, recipients = [] }) {
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Subject"
-            className="w-full rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#4285F4] focus:ring-4 focus:ring-[#4285F4]/15"
+            className="field-input text-sm"
           />
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={9}
             placeholder="Write your message…"
-            className="w-full rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#4285F4] focus:ring-4 focus:ring-[#4285F4]/15 resize-y"
+            className="field-input resize-y text-sm"
           />
 
           <div className="flex flex-wrap gap-1.5">
@@ -102,8 +102,7 @@ export default function MailComposer({ open, onOpenChange, recipients = [] }) {
           <button
             onClick={send}
             disabled={sending}
-            className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white disabled:opacity-60"
-            style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}
+            className="w-full inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#202124] py-3 font-semibold text-white hover:bg-[#3c4043] disabled:opacity-60"
           >
             {sending ? (
               <Loader2 size={18} className="animate-spin" />

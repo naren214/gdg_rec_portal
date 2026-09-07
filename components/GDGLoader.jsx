@@ -8,7 +8,7 @@ const COLORS = ["#4285F4", "#EA4335", "#FBBC04", "#34A853"];
 const GDGLoader = ({ label = "Loading…" }) => {
   return (
     <div className="flex flex-col items-center justify-center gap-5 min-h-[50vh]">
-      <div className="relative">
+      <div className="neu-loader-mark relative">
         <div className="animate-pulse">
           <GDGLogo size={56} />
         </div>
