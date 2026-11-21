@@ -63,7 +63,7 @@ Student or coordinator browser
 
 | Area | Technology |
 | --- | --- |
-| Framework | Next.js `16.3.4` App Router |
+| Framework | Next.js `16.4.6` App Router |
 | UI runtime | React `19.2.8` |
 | Authentication | Better Auth with the Firestore adapter |
 | Database | Cloud Firestore through Firebase Admin SDK |
