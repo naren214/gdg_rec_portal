@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Test, lint, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The test script loads its own environment and stubs external services.
+      - name: Run route-level tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          # Better Auth requires a single origin, not a comma-separated list.
+          BETTER_AUTH_URL: http://localhost:3000
+          # CI-only value; no production credentials are needed for compilation.
+          BETTER_AUTH_SECRET: ci-only-build-secret-0123456789abcdef
+          FIREBASE_PROJECT_ID: demo-gdg-recruitment
+          ENABLE_GOOGLE_AUTH: 'false'
